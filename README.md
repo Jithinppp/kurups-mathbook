@@ -1,36 +1,141 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Kurup
 
-## Getting Started
+A personal expense tracker for cards, cash and the month ahead. Built with
+Next.js 16 and Supabase, with AED as the base currency.
 
-First, run the development server:
+Kurup replaces the spreadsheet with a calmer flow: add accounts, record expenses
+in a few taps, set category budgets, and see exactly where the month went.
+
+## What's inside
+
+- Email sign up / sign in with Supabase Auth
+- Per-user data isolation with Postgres Row Level Security
+- Bank, cash and credit-card accounts
+- Signed amount ledger (`opening + income + transfers in − expenses − transfers out`)
+- Credit-card outstanding and available-credit calculations
+- Month-by-month dashboard with cash-flow trend and category breakdown
+- Category budgets with over-budget warnings
+- Fast transaction sheet with category chips and transfer support
+- Mobile-first layout with a desktop sidebar and a mobile bottom bar
+- AED base currency with original transaction currency + FX rate preserved
+- Local demo mode so the app runs before Supabase is connected
+
+## Run it
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open `http://localhost:3000`. With no Supabase environment variables, the app
+starts in **demo mode**. Click **Open demo workspace** and you get a ready-made
+workspace with six months of sample activity.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+The demo is stored in the browser's `localStorage`. Reset it from
+**Settings → Workspace & data**.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Connect Supabase
 
-## Learn More
+1. Create a project at [supabase.com](https://supabase.com).
+2. Open the SQL editor and run [`supabase/schema.sql`](supabase/schema.sql).
+3. In **Authentication → URL Configuration**, set:
+   - Site URL: `http://localhost:3000` (or your deployed URL)
+   - Redirect URLs: `http://localhost:3000/auth/callback` and
+     `http://localhost:3000/auth/confirm`
+4. Copy `.env.example` to `.env.local` and fill in the project values:
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+NEXT_PUBLIC_SITE_URL=http://localhost:3000
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+5. Restart `npm run dev`. The login screen now uses real email authentication.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Supabase's default email confirmation flow works with both `/auth/callback`
+(PKCE code exchange) and `/auth/confirm` (token hash). Once a user confirms and
+signs in, the database trigger creates their profile, a Cash account and the
+starter categories automatically.
 
-## Deploy on Vercel
+## Schema
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+The full schema is in [`supabase/schema.sql`](supabase/schema.sql).
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+| Table | Purpose |
+| --- | --- |
+| `profiles` | One row per auth user: name, email, fixed base currency |
+| `accounts` | Bank, cash and credit-card accounts with signed opening balances |
+| `categories` | Per-user expense and income categories |
+| `transactions` | Expenses, income and transfers, in the account's currency |
+| `budgets` | One budget amount per category per month |
+
+Reporting helpers:
+
+- `account_balances` view — opening balance plus the signed transaction ledger
+- `monthly_spend` view — base-currency expenses and income by month
+- `base_amount` — generated `amount × fx_rate`, where `fx_rate` is AED per unit
+  of the transaction currency
+
+### Balance rules
+
+```text
+bank/cash balance = opening
+                  + income
+                  + transfers in
+                  − expenses
+                  − transfers out
+
+credit card outstanding = max(0, −(opening + income + transfers in
+                                  − expenses − transfers out))
+```
+
+A credit card starts with a negative opening balance when money is owed. Card
+payments are transfers from a bank account to the card, which raises the card
+balance toward zero. Transfers are excluded from expense reports.
+
+### Security
+
+Every table has RLS enabled. A user can only read or write rows where
+`auth.uid()` matches the row owner. A database trigger also verifies that both
+sides of a transfer and any category belong to the same user, so a forged
+account ID cannot cross tenant boundaries.
+
+## Demo mode
+
+Demo mode activates only when `NEXT_PUBLIC_SUPABASE_URL` and
+`NEXT_PUBLIC_SUPABASE_ANON_KEY` are absent. It uses a local browser store, not
+Supabase, and is intended for previewing the interface. Add the environment
+variables to switch to real multi-user authentication and persistence.
+
+## Scripts
+
+```bash
+npm run dev        # development server
+npm run build      # production build
+npm run start      # serve the production build
+npm run lint       # eslint
+npm run typecheck  # tsc --noEmit
+```
+
+## Structure
+
+```text
+app/
+  (app)/            protected workspace: dashboard, transactions, accounts, budgets, settings
+  (auth)/           login and sign up
+  auth/             Supabase confirmation callbacks
+components/         app shell, UI primitives, charts, dialogs
+lib/                auth context, data context, finance math, demo seed, Supabase clients
+supabase/schema.sql database schema, RLS, triggers and views
+proxy.ts            Next.js 16 proxy for session refresh + route protection
+DESIGN.md           Kraken-inspired design language used for the UI
+```
+
+## Notes and limits
+
+- Base currency is AED for this build and is fixed after setup.
+- Transfers between accounts in different currencies are intentionally blocked
+  for now; transactions themselves can still be recorded in INR, USD, EUR or GBP
+  using the stored FX rate.
+- The old Excel workbook is not imported. This is a fresh start.
+- The app is web-first; the layout is designed to work well down to small phones.
