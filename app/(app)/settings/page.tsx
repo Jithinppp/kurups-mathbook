@@ -1,0 +1,341 @@
+"use client";
+
+import {
+  ArrowUpRight,
+  BadgeCheck,
+  Check,
+  Database,
+  Layers,
+  LogOut,
+  Plus,
+  RefreshCcw,
+  ShieldCheck,
+  UserRound,
+} from "lucide-react";
+import Link from "next/link";
+import { useState } from "react";
+import { toast } from "sonner";
+import { AppIcon } from "@/components/app-icon";
+import { CategoryDialog } from "@/components/categories/category-dialog";
+import { PageHeader } from "@/components/page-header";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Field, Input } from "@/components/ui/input";
+import { useAuth } from "@/lib/auth-context";
+import { useData } from "@/lib/data-context";
+import { cn } from "@/lib/utils";
+
+export default function SettingsPage() {
+  const { user, signOut, configured } = useAuth();
+  const { profile, categories, updateProfile, resetDemo } = useData();
+  const [nameDraft, setNameDraft] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [categoryOpen, setCategoryOpen] = useState(false);
+  const [confirmReset, setConfirmReset] = useState(false);
+  const name = nameDraft ?? profile.fullName;
+
+  async function saveName() {
+    const nextName = name.trim();
+    if (!nextName || nextName === profile.fullName) return;
+    setSaving(true);
+    try {
+      await updateProfile(nextName);
+      setNameDraft(nextName);
+      toast.success("Profile updated");
+    } catch (saveError) {
+      toast.error(
+        saveError instanceof Error ? saveError.message : "Could not update profile.",
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const expenseCategories = categories.filter(
+    (category) => category.kind === "expense",
+  );
+  const incomeCategories = categories.filter((category) => category.kind === "income");
+
+  return (
+    <div className="space-y-6">
+      <PageHeader
+        eyebrow="Workspace"
+        title="Settings"
+        description="Your profile, categories and the details behind this workspace."
+      />
+
+      <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
+        <Card>
+          <CardHeader>
+            <div>
+              <CardTitle>Profile</CardTitle>
+              <p className="mt-1 text-xs text-muted">
+                The name shown around the app.
+              </p>
+            </div>
+            <span className="flex size-9 items-center justify-center rounded-xl bg-brand-soft text-brand">
+              <UserRound className="size-4" />
+            </span>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Field label="Full name">
+              <Input
+                value={name}
+                onChange={(event) => setNameDraft(event.target.value)}
+                placeholder="Your name"
+              />
+            </Field>
+            <Field label="Email">
+              <Input value={user?.email ?? profile.email} disabled />
+            </Field>
+            <div className="flex items-center justify-between gap-3 pt-1">
+              <div className="flex items-center gap-2 text-[11px] text-subtle">
+                {user?.isDemo ? (
+                  <>
+                    <Database className="size-3.5" />
+                    Demo profile stored in this browser
+                  </>
+                ) : (
+                  <>
+                    <ShieldCheck className="size-3.5 text-success" />
+                    Secured by Supabase Auth
+                  </>
+                )}
+              </div>
+              <Button
+                size="sm"
+                onClick={saveName}
+                loading={saving}
+                disabled={!name.trim() || name.trim() === profile.fullName}
+              >
+                Save
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <div>
+              <CardTitle>Base currency</CardTitle>
+              <p className="mt-1 text-xs text-muted">
+                Reports and totals convert to this currency.
+              </p>
+            </div>
+            <span className="flex size-9 items-center justify-center rounded-xl bg-success-soft text-success-dark">
+              <BadgeCheck className="size-4" />
+            </span>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between rounded-xl border border-line-soft bg-canvas px-4 py-3">
+              <div>
+                <p className="text-sm font-semibold text-ink">AED</p>
+                <p className="mt-0.5 text-[11px] text-subtle">UAE Dirham</p>
+              </div>
+              <span className="flex size-7 items-center justify-center rounded-full bg-success/10 text-success-dark">
+                <Check className="size-3.5" />
+              </span>
+            </div>
+            <p className="mt-3 text-[11px] leading-relaxed text-subtle">
+              This workspace is locked to AED. Multi-currency accounts are
+              converted using the exchange rate stored on each transaction.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <div>
+            <CardTitle>Categories</CardTitle>
+            <p className="mt-1 text-xs text-muted">
+              Used for budgets, reports and quick entry.
+            </p>
+          </div>
+          <Button size="sm" variant="secondary" onClick={() => setCategoryOpen(true)}>
+            <Plus className="size-3.5" />
+            New category
+          </Button>
+        </CardHeader>
+        <CardContent className="space-y-5 pt-5">
+          <CategoryGroup title="Expense categories" categories={expenseCategories} />
+          <CategoryGroup title="Income categories" categories={incomeCategories} />
+        </CardContent>
+      </Card>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <div>
+              <CardTitle>Accounts</CardTitle>
+              <p className="mt-1 text-xs text-muted">
+                Manage cards, banks and cash wallets.
+              </p>
+            </div>
+            <span className="flex size-9 items-center justify-center rounded-xl bg-brand-soft text-brand">
+              <Layers className="size-4" />
+            </span>
+          </CardHeader>
+          <CardContent>
+            <Link
+              href="/accounts"
+              className="flex items-center justify-between rounded-xl border border-line-soft px-4 py-3 transition hover:bg-canvas"
+            >
+              <div>
+                <p className="text-[13px] font-medium text-ink">Open accounts</p>
+                <p className="mt-0.5 text-[11px] text-subtle">
+                  Add, edit or archive an account
+                </p>
+              </div>
+              <ArrowUpRight className="size-4 text-subtle" />
+            </Link>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <div>
+              <CardTitle>Workspace & data</CardTitle>
+              <p className="mt-1 text-xs text-muted">
+                Sign out or reset the local preview.
+              </p>
+            </div>
+            <span
+              className={cn(
+                "flex size-9 items-center justify-center rounded-xl",
+                user?.isDemo
+                  ? "bg-warning-soft text-warning"
+                  : "bg-success-soft text-success-dark",
+              )}
+            >
+              <Database className="size-4" />
+            </span>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex items-center justify-between gap-3 rounded-xl border border-line-soft px-4 py-3">
+              <div>
+                <p className="text-[13px] font-medium text-ink">Connection</p>
+                <p className="mt-0.5 text-[11px] text-subtle">
+                  {user?.isDemo
+                    ? "Local demo mode — data stays in this browser"
+                    : configured
+                      ? "Connected to Supabase"
+                      : "Supabase environment variables are missing"}
+                </p>
+              </div>
+              <Badge variant={user?.isDemo ? "warning" : "success"}>
+                {user?.isDemo ? "Demo" : "Live"}
+              </Badge>
+            </div>
+
+            {user?.isDemo ? (
+              confirmReset ? (
+                <div className="flex items-center gap-2 rounded-xl bg-warning-soft p-3">
+                  <p className="flex-1 text-[11px] text-warning">
+                    Reset all demo transactions and budgets?
+                  </p>
+                  <Button
+                    size="sm"
+                    variant="danger"
+                    onClick={() => {
+                      resetDemo();
+                      setConfirmReset(false);
+                      toast.success("Demo workspace reset");
+                    }}
+                  >
+                    Reset
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setConfirmReset(false)}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  variant="secondary"
+                  className="w-full"
+                  onClick={() => setConfirmReset(true)}
+                >
+                  <RefreshCcw className="size-4" />
+                  Reset demo data
+                </Button>
+              )
+            ) : null}
+
+            <Button
+              variant="secondary"
+              className="w-full"
+              onClick={() => void signOut()}
+            >
+              <LogOut className="size-4" />
+              Sign out
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="flex flex-col items-start justify-between gap-3 rounded-2xl border border-line-soft bg-white px-4 py-4 sm:flex-row sm:items-center">
+        <div className="flex items-center gap-2.5">
+          <span className="flex size-8 items-center justify-center rounded-lg bg-brand text-white">
+            <span className="text-[11px] font-bold">K</span>
+          </span>
+          <div>
+            <p className="text-xs font-semibold text-ink">Kurup</p>
+            <p className="text-[11px] text-subtle">
+              A quieter way to keep the month honest.
+            </p>
+          </div>
+        </div>
+        <p className="text-[10px] text-subtle">
+          Next.js + Supabase · Base currency AED
+        </p>
+      </div>
+
+      <CategoryDialog open={categoryOpen} onOpenChange={setCategoryOpen} />
+    </div>
+  );
+}
+
+function CategoryGroup({
+  title,
+  categories,
+}: {
+  title: string;
+  categories: { id: string; name: string; icon: string; color: string }[];
+}) {
+  return (
+    <div>
+      <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-subtle">
+        {title}
+      </p>
+      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+        {categories.map((category) => (
+          <div
+            key={category.id}
+            className="flex items-center gap-2.5 rounded-xl border border-line-soft px-3 py-2"
+          >
+            <span
+              className="flex size-7 items-center justify-center rounded-lg"
+              style={{
+                backgroundColor: `${category.color}14`,
+                color: category.color,
+              }}
+            >
+              <AppIcon name={category.icon} className="size-3.5" />
+            </span>
+            <span className="truncate text-xs font-medium text-ink">
+              {category.name}
+            </span>
+          </div>
+        ))}
+        {categories.length === 0 ? (
+          <p className="text-xs text-subtle">No categories yet.</p>
+        ) : null}
+      </div>
+    </div>
+  );
+}
