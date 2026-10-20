@@ -163,6 +163,19 @@ export default function LoginPage() {
           </Button>
         </form>
 
+        {configured ? (
+          <div className="mt-3 flex justify-center">
+            <button
+              type="button"
+              onClick={handleDemo}
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-brand/15 bg-white px-3.5 text-[12px] font-medium text-brand transition hover:border-brand/25 hover:bg-brand-soft/60 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/15"
+            >
+              <Sparkles className="size-3.5" />
+              Open demo workspace
+            </button>
+          </div>
+        ) : null}
+
         <div className="mt-5 flex items-center gap-3">
           <span className="h-px flex-1 bg-line-soft" />
           <span className="text-[10px] font-medium uppercase tracking-[0.12em] text-subtle">

@@ -18,7 +18,7 @@ in a few taps, set category budgets, and see exactly where the month went.
 - Fast transaction sheet with category chips and transfer support
 - Mobile-first layout with a desktop sidebar and a mobile bottom bar
 - AED base currency with original transaction currency + FX rate preserved
-- Local demo mode so the app runs before Supabase is connected
+- Local demo workspace available from the sign-in screen, with or without Supabase connected
 
 ## Run it
 
@@ -29,7 +29,8 @@ npm run dev
 
 Open `http://localhost:3000`. With no Supabase environment variables, the app
 starts in **demo mode**. Click **Open demo workspace** and you get a ready-made
-workspace with six months of sample activity.
+workspace with six months of sample activity. When Supabase is connected, the
+same button appears as a compact secondary action on the sign-in screen.
 
 The demo is stored in the browser's `localStorage`. Reset it from
 **Settings → Workspace & data**.
@@ -102,10 +103,11 @@ account ID cannot cross tenant boundaries.
 
 ## Demo mode
 
-Demo mode activates only when `NEXT_PUBLIC_SUPABASE_URL` and
-`NEXT_PUBLIC_SUPABASE_ANON_KEY` are absent. It uses a local browser store, not
-Supabase, and is intended for previewing the interface. Add the environment
-variables to switch to real multi-user authentication and persistence.
+The demo workspace is available from the sign-in screen whether or not
+`NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` are set. It uses a
+local browser store, not Supabase, and never reads or writes project data. When
+Supabase is connected, it stays a secondary option so visitors can preview the
+interface before creating a real account.
 
 ## Scripts
 

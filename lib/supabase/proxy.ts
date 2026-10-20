@@ -29,14 +29,20 @@ function redirectWithCookies(
 export async function updateSession(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
   const publicRoute = isPublic(pathname);
+  const isDemo = request.cookies.get(DEMO_COOKIE)?.value === "1";
+
+  // Demo mode is local-only and available even when Supabase is connected.
+  // It should never fall through to Supabase session checks.
+  if (isDemo) {
+    if (PUBLIC_PATHS.includes(pathname)) {
+      return NextResponse.redirect(new URL("/", request.url));
+    }
+    return NextResponse.next();
+  }
 
   if (!configured) {
-    const isDemo = request.cookies.get(DEMO_COOKIE)?.value === "1";
-    if (!isDemo && !publicRoute) {
+    if (!publicRoute) {
       return NextResponse.redirect(new URL("/login", request.url));
-    }
-    if (isDemo && PUBLIC_PATHS.includes(pathname)) {
-      return NextResponse.redirect(new URL("/", request.url));
     }
     return NextResponse.next();
   }

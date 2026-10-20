@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import {
   createContext,
   useCallback,
@@ -45,6 +44,13 @@ function setDemoCookie(enabled: boolean) {
   }; samesite=lax`;
 }
 
+function hasDemoCookie() {
+  if (typeof document === "undefined") return false;
+  return document.cookie
+    .split(";")
+    .some((value) => value.trim() === `${DEMO_COOKIE}=1`);
+}
+
 function appUserFromSupabase(user: {
   id: string;
   email?: string | null;
@@ -66,12 +72,25 @@ function appUserFromSupabase(user: {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const router = useRouter();
   const configured = isSupabaseConfigured();
   const [user, setUser] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const hydrateDemo = async () => {
+      await Promise.resolve();
+      // The cookie is the session, in configured or local-only builds.
+      // Recreate the local marker if the user cleared storage.
+      window.localStorage.setItem(DEMO_USER_KEY, JSON.stringify(DEMO_USER));
+      setUser(DEMO_USER);
+      setLoading(false);
+    };
+
+    if (hasDemoCookie()) {
+      void hydrateDemo();
+      return;
+    }
+
     const supabase = getSupabaseBrowserClient();
 
     if (configured && supabase) {
@@ -79,7 +98,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const hydrate = async () => {
         const { data } = await supabase.auth.getUser();
-        if (!active) return;
+        if (!active || hasDemoCookie()) return;
         setUser(data.user ? appUserFromSupabase(data.user) : null);
         setLoading(false);
       };
@@ -89,6 +108,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const {
         data: { subscription },
       } = supabase.auth.onAuthStateChange((_event, session) => {
+        if (hasDemoCookie()) return;
         setUser(session?.user ? appUserFromSupabase(session.user) : null);
         setLoading(false);
       });
@@ -99,26 +119,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       };
     }
 
-    const hasDemoCookie = () =>
-      typeof document !== "undefined" &&
-      document.cookie
-        .split(";")
-        .some((value) => value.trim() === `${DEMO_COOKIE}=1`);
-
-    const hydrateDemo = async () => {
+    const finishLoading = async () => {
       await Promise.resolve();
-      if (hasDemoCookie()) {
-        // The cookie is the session. Recreate the local marker if the user
-        // cleared storage so a stale cookie can never strand them on splash.
-        if (typeof window !== "undefined") {
-          window.localStorage.setItem(DEMO_USER_KEY, JSON.stringify(DEMO_USER));
-        }
-        setUser(DEMO_USER);
-      }
       setLoading(false);
     };
 
-    void hydrateDemo();
+    void finishLoading();
   }, [configured]);
 
   const signIn = useCallback(
@@ -167,15 +173,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await supabase.auth.signOut();
     }
     setUser(null);
-    router.push("/login");
-    router.refresh();
-  }, [router]);
+    // A full reload clears any preserved auth-page state and stale errors.
+    window.location.replace(`${window.location.origin}/login`);
+  }, []);
 
   const enterDemo = useCallback(() => {
     if (typeof window !== "undefined") {
       window.localStorage.setItem(DEMO_USER_KEY, JSON.stringify(DEMO_USER));
     }
     setDemoCookie(true);
+    setLoading(false);
     setUser(DEMO_USER);
   }, []);
 
