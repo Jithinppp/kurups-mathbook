@@ -1,10 +1,11 @@
 # Kurup
 
 A personal expense tracker for cards, cash and the month ahead. Built with
-Next.js 16 and Supabase, with AED as the base currency.
+Next.js 16 and Supabase. Every account keeps its own currency.
 
 Kurup replaces the spreadsheet with a calmer flow: add accounts, record expenses
-in a few taps, set category budgets, and see exactly where the month went.
+in a few taps, set category budgets, and see exactly where the month went —
+without converting AED and INR into one misleading total.
 
 ## What's inside
 
@@ -13,12 +14,13 @@ in a few taps, set category budgets, and see exactly where the month went.
 - Bank, cash and credit-card accounts
 - Signed amount ledger (`opening + income + transfers in − expenses − transfers out`)
 - Credit-card outstanding and available-credit calculations
-- Month-by-month dashboard with cash-flow trend and category breakdown
-- Category budgets with over-budget warnings
-- Fast transaction sheet with category chips and transfer support
+- Account-first dashboard: select a bank, cash source or card, then see that account's month, cash-flow trend and category breakdown
+- Per-account category budgets with over-budget warnings
+- Fast transaction sheet with category chips, same-currency transfer support, and explicit edit and delete actions
 - Mobile-first layout with a desktop sidebar and a mobile bottom bar
-- AED base currency with original transaction currency + FX rate preserved
-- Local demo workspace available from the sign-in screen, with or without Supabase connected
+- Native currency ledgers: an AED card stays AED, an INR card stays INR
+- A practical list of popular account currencies, from AED and INR to USD, EUR, GBP, SAR, JPY and more
+- Local demo workspace with both AED and INR sample activity, available with or without Supabase connected
 
 ## Run it
 
@@ -29,8 +31,8 @@ npm run dev
 
 Open `http://localhost:3000`. With no Supabase environment variables, the app
 starts in **demo mode**. Click **Open demo workspace** and you get a ready-made
-workspace with six months of sample activity. When Supabase is connected, the
-same button appears as a compact secondary action on the sign-in screen.
+workspace with six months of AED and INR activity. When Supabase is connected,
+the same button appears as a compact secondary action on the sign-in screen.
 
 The demo is stored in the browser's `localStorage`. Reset it from
 **Settings → Workspace & data**.
@@ -38,7 +40,11 @@ The demo is stored in the browser's `localStorage`. Reset it from
 ## Connect Supabase
 
 1. Create a project at [supabase.com](https://supabase.com).
-2. Open the SQL editor and run [`supabase/schema.sql`](supabase/schema.sql).
+2. Open the SQL editor and run [`supabase/schema.sql`](supabase/schema.sql) for a
+   new project. For an existing project created before native currencies, back
+   up first and run these in order:
+   1. [`202610210001_native_currencies.sql`](supabase/migrations/202610210001_native_currencies.sql)
+   2. [`202610220001_account_scoped_budgets.sql`](supabase/migrations/202610220001_account_scoped_budgets.sql)
 3. In **Authentication → URL Configuration**, set:
    - Site URL: `http://localhost:3000` (or your deployed URL)
    - Redirect URLs: `http://localhost:3000/auth/callback` and
@@ -64,18 +70,21 @@ The full schema is in [`supabase/schema.sql`](supabase/schema.sql).
 
 | Table | Purpose |
 | --- | --- |
-| `profiles` | One row per auth user: name, email, fixed base currency |
+| `profiles` | One row per auth user: name and email |
 | `accounts` | Bank, cash and credit-card accounts with signed opening balances |
 | `categories` | Per-user expense and income categories |
 | `transactions` | Expenses, income and transfers, in the account's currency |
-| `budgets` | One budget amount per category per month |
+| `budgets` | One budget amount per account, category and month |
 
 Reporting helpers:
 
 - `account_balances` view — opening balance plus the signed transaction ledger
-- `monthly_spend` view — base-currency expenses and income by month
-- `base_amount` — generated `amount × fx_rate`, where `fx_rate` is AED per unit
-  of the transaction currency
+- `monthly_spend` view — expenses and income by month, grouped by account and currency
+
+A transaction's currency is copied from its source account by a database trigger,
+so it cannot drift. A budget is attached to one account and its currency follows
+that account. An account's currency is immutable once it has transactions. There
+are no exchange rates and no base-currency conversion anywhere in the app.
 
 ### Balance rules
 
@@ -92,14 +101,21 @@ credit card outstanding = max(0, −(opening + income + transfers in
 
 A credit card starts with a negative opening balance when money is owed. Card
 payments are transfers from a bank account to the card, which raises the card
-balance toward zero. Transfers are excluded from expense reports.
+balance toward zero. Transfers are excluded from expense reports and must stay
+inside one currency. Balances, summaries and budgets are always shown in the
+account's native currency.
+
+Monthly reports only count the selected account's activity in that month. The
+closing balance carries into the next month, so a salary recorded in January
+does not disappear when February starts — only the month's income and spending
+reset.
 
 ### Security
 
 Every table has RLS enabled. A user can only read or write rows where
 `auth.uid()` matches the row owner. A database trigger also verifies that both
-sides of a transfer and any category belong to the same user, so a forged
-account ID cannot cross tenant boundaries.
+sides of a transfer, any category and any budget account belong to the same user,
+so a forged account ID cannot cross tenant boundaries.
 
 ## Demo mode
 
@@ -129,15 +145,21 @@ app/
 components/         app shell, UI primitives, charts, dialogs
 lib/                auth context, data context, finance math, demo seed, Supabase clients
 supabase/schema.sql database schema, RLS, triggers and views
+supabase/migrations/ upgrade SQL for existing projects
 proxy.ts            Next.js 16 proxy for session refresh + route protection
 DESIGN.md           Kraken-inspired design language used for the UI
 ```
 
 ## Notes and limits
 
-- Base currency is AED for this build and is fixed after setup.
-- Transfers between accounts in different currencies are intentionally blocked
-  for now; transactions themselves can still be recorded in INR, USD, EUR or GBP
-  using the stored FX rate.
+- There is no base currency. Accounts can be created in a broad list of popular
+  currencies, and the dashboard, activity and budget pages are scoped to the
+  selected account rather than a currency total.
+- Transfers between accounts in different currencies are intentionally blocked.
+  If money moves across currencies outside the app, record it as an expense in
+  the source account and income in the destination account. No exchange rate is
+  stored or imputed.
+- Existing budgets are attached to the first account in their currency by the
+  account-scoped budgets migration. Plans with no matching account are removed.
 - The old Excel workbook is not imported. This is a fresh start.
 - The app is web-first; the layout is designed to work well down to small phones.

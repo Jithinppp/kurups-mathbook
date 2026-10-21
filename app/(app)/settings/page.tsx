@@ -3,7 +3,6 @@
 import {
   ArrowUpRight,
   BadgeCheck,
-  Check,
   Database,
   Layers,
   LogOut,
@@ -23,12 +22,14 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, Input } from "@/components/ui/input";
 import { useAuth } from "@/lib/auth-context";
+import { currencyLabel } from "@/lib/constants";
 import { useData } from "@/lib/data-context";
+import { currenciesForAccounts } from "@/lib/finance";
 import { cn } from "@/lib/utils";
 
 export default function SettingsPage() {
   const { user, signOut, configured } = useAuth();
-  const { profile, categories, updateProfile, resetDemo } = useData();
+  const { profile, accounts, categories, updateProfile, resetDemo } = useData();
   const [nameDraft, setNameDraft] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [categoryOpen, setCategoryOpen] = useState(false);
@@ -56,6 +57,7 @@ export default function SettingsPage() {
     (category) => category.kind === "expense",
   );
   const incomeCategories = categories.filter((category) => category.kind === "income");
+  const currencies = currenciesForAccounts(accounts);
 
   return (
     <div className="space-y-6">
@@ -118,9 +120,10 @@ export default function SettingsPage() {
         <Card>
           <CardHeader>
             <div>
-              <CardTitle>Base currency</CardTitle>
+              <CardTitle>Native currencies</CardTitle>
               <p className="mt-1 text-xs text-muted">
-                Reports and totals convert to this currency.
+                Each account keeps its own currency. Reports are scoped to an
+                account, so nothing is converted.
               </p>
             </div>
             <span className="flex size-9 items-center justify-center rounded-xl bg-success-soft text-success-dark">
@@ -128,18 +131,36 @@ export default function SettingsPage() {
             </span>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center justify-between rounded-xl border border-line-soft bg-canvas px-4 py-3">
-              <div>
-                <p className="text-sm font-semibold text-ink">AED</p>
-                <p className="mt-0.5 text-[11px] text-subtle">UAE Dirham</p>
+            {currencies.length > 0 ? (
+              <div className="space-y-2">
+                {currencies.map((currency) => {
+                  const count = accounts.filter(
+                    (account) => account.currency === currency,
+                  ).length;
+                  return (
+                    <div
+                      key={currency}
+                      className="flex items-center justify-between rounded-xl border border-line-soft bg-canvas px-4 py-3"
+                    >
+                      <div>
+                        <p className="text-sm font-semibold text-ink">{currency}</p>
+                        <p className="mt-0.5 text-[11px] text-subtle">
+                          {currencyLabel(currency)}
+                        </p>
+                      </div>
+                      <Badge variant="neutral">
+                        {count} account{count === 1 ? "" : "s"}
+                      </Badge>
+                    </div>
+                  );
+                })}
               </div>
-              <span className="flex size-7 items-center justify-center rounded-full bg-success/10 text-success-dark">
-                <Check className="size-3.5" />
-              </span>
-            </div>
+            ) : (
+              <p className="text-xs text-subtle">No accounts yet.</p>
+            )}
             <p className="mt-3 text-[11px] leading-relaxed text-subtle">
-              This workspace is locked to AED. Multi-currency accounts are
-              converted using the exchange rate stored on each transaction.
+              Balances, reports and budgets stay in their native currency. A
+              card&apos;s currency is fixed after creation.
             </p>
           </CardContent>
         </Card>
@@ -170,7 +191,7 @@ export default function SettingsPage() {
             <div>
               <CardTitle>Accounts</CardTitle>
               <p className="mt-1 text-xs text-muted">
-                Manage cards, banks and cash wallets.
+                Manage credit cards, banks and cash sources.
               </p>
             </div>
             <span className="flex size-9 items-center justify-center rounded-xl bg-brand-soft text-brand">
@@ -291,7 +312,7 @@ export default function SettingsPage() {
           </div>
         </div>
         <p className="text-[10px] text-subtle">
-          Next.js + Supabase · Base currency AED
+          Next.js + Supabase · Native currencies
         </p>
       </div>
 

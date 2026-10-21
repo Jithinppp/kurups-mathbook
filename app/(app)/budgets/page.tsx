@@ -9,8 +9,10 @@ import {
   Target,
   Wallet,
 } from "lucide-react";
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
+import { AccountSwitcher } from "@/components/account-switcher";
 import { AppIcon } from "@/components/app-icon";
 import { BudgetDialog } from "@/components/budgets/budget-dialog";
 import { Money } from "@/components/money";
@@ -21,32 +23,48 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Progress } from "@/components/ui/progress";
+import { useAccountSelection } from "@/lib/account-selection";
 import { SUGGESTED_BUDGETS } from "@/lib/constants";
 import { useData } from "@/lib/data-context";
 import { currentMonthKey, formatMonth } from "@/lib/dates";
 import {
   budgetRows,
   overspentCategories,
-  transactionsForMonth,
+  transactionsForAccountMonth,
   type BudgetRow,
 } from "@/lib/finance";
 import { formatMoney, formatPercent } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 export default function BudgetsPage() {
-  const { categories, transactions, budgets, profile, setBudgets } = useData();
+  const { categories, transactions, budgets, setBudgets, ready } = useData();
+  const { selectedAccount } = useAccountSelection();
   const [month, setMonth] = useState(currentMonthKey());
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<BudgetRow | null>(null);
   const [applying, setApplying] = useState(false);
 
+  const accountId = selectedAccount?.id ?? "";
+  const currency = selectedAccount?.currency ?? "AED";
+  const suggestions = selectedAccount ? SUGGESTED_BUDGETS[currency] : undefined;
   const monthTransactions = useMemo(
-    () => transactionsForMonth(transactions, month),
-    [transactions, month],
+    () =>
+      selectedAccount
+        ? transactionsForAccountMonth(transactions, selectedAccount.id, month)
+        : [],
+    [transactions, selectedAccount, month],
   );
   const rows = useMemo(
-    () => budgetRows(categories, monthTransactions, budgets, month),
-    [categories, monthTransactions, budgets, month],
+    () =>
+      budgetRows(
+        categories,
+        monthTransactions,
+        budgets,
+        month,
+        accountId,
+        currency,
+      ),
+    [categories, monthTransactions, budgets, month, accountId, currency],
   );
   const budgeted = rows.filter((row) => row.budget);
   const unbudgeted = rows.filter((row) => !row.budget);
@@ -70,12 +88,20 @@ export default function BudgetsPage() {
   }
 
   async function useSuggestedBudgets() {
+    if (!selectedAccount) return;
+    if (!suggestions) {
+      toast.error(`No suggested budgets for ${currency}.`);
+      return;
+    }
+
     const inputs = categories
       .filter((category) => category.kind === "expense")
       .map((category) => ({
+        accountId: selectedAccount.id,
         categoryId: category.id,
         month,
-        amount: SUGGESTED_BUDGETS[category.name] ?? 0,
+        amount: suggestions[category.name] ?? 0,
+        currency,
       }))
       .filter((input) => input.amount > 0);
 
@@ -87,7 +113,7 @@ export default function BudgetsPage() {
     setApplying(true);
     try {
       await setBudgets(month, inputs);
-      toast.success("Suggested budgets applied");
+      toast.success(`Suggested budgets applied to ${selectedAccount.name}`);
     } catch (applyError) {
       toast.error(
         applyError instanceof Error
@@ -99,15 +125,45 @@ export default function BudgetsPage() {
     }
   }
 
+  if (!ready) return null;
+
+  if (!selectedAccount) {
+    return (
+      <div className="space-y-6">
+        <PageHeader
+          eyebrow="Planning"
+          title="Budgets"
+          description="Add a bank, cash source or credit card first, then give it a monthly plan."
+        />
+        <EmptyState
+          icon={<Wallet className="size-5" />}
+          title="No accounts yet"
+          description="Budgets belong to an account. Create your first account to start planning."
+          action={
+            <Link
+              href="/accounts"
+              className="inline-flex h-11 items-center justify-center rounded-xl bg-brand px-4 text-sm font-medium text-white transition hover:bg-brand-dark"
+            >
+              Add an account
+            </Link>
+          }
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader
         eyebrow="Planning"
         title="Budgets"
-        description={`Give ${formatMonth(month)} a plan, then watch the categories that need attention.`}
+        description={`Give ${selectedAccount.name} a plan for ${formatMonth(
+          month,
+        )}. Only this account's expenses count; plans reset monthly and balances carry forward.`}
         actions={
           <>
             <MonthPicker value={month} onChange={setMonth} />
+            <AccountSwitcher />
             <Button onClick={openNew} className="hidden sm:inline-flex">
               <Plus className="size-4" />
               Set budget
@@ -125,7 +181,7 @@ export default function BudgetsPage() {
                 <Target className="size-4" />
               </span>
               <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-brand-dark">
-                {formatMonth(month)} plan
+                {formatMonth(month)} · {selectedAccount.name} plan
               </p>
             </div>
             <p className="mt-4 text-[11px] font-medium text-muted">
@@ -137,11 +193,11 @@ export default function BudgetsPage() {
                 remaining < 0 ? "text-danger" : "text-ink",
               )}
             >
-              <Money value={Math.abs(remaining)} currency={profile.baseCurrency} />
+              <Money value={Math.abs(remaining)} currency={currency} />
             </p>
             <p className="mt-2 text-[11px] text-muted">
-              {formatMoney(spent, profile.baseCurrency)} spent of{" "}
-              {formatMoney(totalBudget, profile.baseCurrency)}
+              {formatMoney(spent, currency)} spent of{" "}
+              {formatMoney(totalBudget, currency)}
             </p>
             <Progress
               value={progress}
@@ -153,8 +209,12 @@ export default function BudgetsPage() {
           </div>
 
           <div className="grid grid-cols-3 gap-2 lg:grid-cols-1 lg:gap-0 lg:rounded-2xl lg:border lg:border-brand/10 lg:bg-white/70 lg:p-3">
-            <SummaryMetric label="Budgeted" value={totalBudget} />
-            <SummaryMetric label="Spent" value={spent} />
+            <SummaryMetric
+              label="Budgeted"
+              value={totalBudget}
+              currency={currency}
+            />
+            <SummaryMetric label="Spent" value={spent} currency={currency} />
             <SummaryMetric
               label="Categories over"
               value={over.length}
@@ -203,7 +263,7 @@ export default function BudgetsPage() {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            {budgeted.length === 0 ? (
+            {budgeted.length === 0 && suggestions ? (
               <Button
                 variant="secondary"
                 size="sm"
@@ -242,7 +302,7 @@ export default function BudgetsPage() {
         </CardContent>
       </Card>
 
-      {budgeted.length === 0 ? (
+      {budgeted.length === 0 && suggestions ? (
         <Card className="flex flex-col items-start gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-start gap-3">
             <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-brand-soft text-brand">
@@ -273,6 +333,8 @@ export default function BudgetsPage() {
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         month={month}
+        accountId={selectedAccount.id}
+        currency={currency}
         editing={editing}
       />
     </div>
@@ -303,7 +365,7 @@ function BudgetRowItem({
       </span>
 
       <div className="min-w-0 flex-1">
-        <div className="flex items-baseline justify-between gap-3">
+        <div className="flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-3">
           <div className="flex min-w-0 items-center gap-2">
             <span className="truncate text-[13px] font-medium text-ink">
               {row.category.name}
@@ -316,7 +378,10 @@ function BudgetRowItem({
           </div>
           <span className="tabular shrink-0 text-[11px] font-medium text-muted">
             {row.budget
-              ? `${formatMoney(row.spent)} / ${formatMoney(row.budget.amount)}`
+              ? `${formatMoney(row.spent, row.currency)} / ${formatMoney(
+                  row.budget.amount,
+                  row.currency,
+                )}`
               : "No budget"}
           </span>
         </div>
@@ -349,11 +414,13 @@ function BudgetRowItem({
 function SummaryMetric({
   label,
   value,
+  currency,
   isCount = false,
   tone = "neutral",
 }: {
   label: string;
   value: number;
+  currency?: string;
   isCount?: boolean;
   tone?: "neutral" | "danger" | "success";
 }) {
@@ -370,7 +437,7 @@ function SummaryMetric({
               : "text-ink",
         )}
       >
-        {isCount ? value : <Money value={value} />}
+        {isCount ? value : <Money value={value} currency={currency ?? "AED"} />}
       </p>
     </div>
   );

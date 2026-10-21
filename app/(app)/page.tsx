@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { AccountSwitcher } from "@/components/account-switcher";
 import { AppIcon } from "@/components/app-icon";
 import { DonutChart, type DonutSegment } from "@/components/charts/donut-chart";
 import { MonthlyBars } from "@/components/charts/monthly-bars";
@@ -24,18 +25,21 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Progress } from "@/components/ui/progress";
+import { useAccountSelection } from "@/lib/account-selection";
 import { useData } from "@/lib/data-context";
-import { currentMonthKey, formatMonth } from "@/lib/dates";
+import { addMonths, currentMonthKey, formatMonth } from "@/lib/dates";
 import {
-  accountBalances,
+  accountBalanceAt,
+  accountDisplayBalance,
+  accountOpeningBalanceAt,
   budgetRows,
   monthlyTrend,
   overspentCategories,
   projectedSpend,
   spendingByCategory,
   summarizeTransactions,
-  totals,
-  transactionsForMonth,
+  transactionsForAccount,
+  transactionsForAccountMonth,
 } from "@/lib/finance";
 import { formatMoney, formatPercent } from "@/lib/format";
 import type { AccountWithBalance } from "@/lib/types";
@@ -45,29 +49,35 @@ import { useQuickAdd } from "@/components/quick-add";
 export default function DashboardPage() {
   const { accounts, categories, transactions, budgets, profile, ready } =
     useData();
+  const { activeAccounts, selectedAccount, setSelectedAccountId } =
+    useAccountSelection();
   const { openTransaction } = useQuickAdd();
   const [month, setMonth] = useState(currentMonthKey());
 
-  const allBalances = useMemo(
-    () => accountBalances(accounts, transactions),
-    [accounts, transactions],
-  );
-  const visibleBalances = useMemo(
-    () => allBalances.filter((account) => !account.isArchived),
-    [allBalances],
-  );
-  const stats = useMemo(() => totals(allBalances), [allBalances]);
+  const accountId = selectedAccount?.id ?? "";
+  const currency = selectedAccount?.currency ?? "AED";
   const monthTransactions = useMemo(
-    () => transactionsForMonth(transactions, month),
-    [transactions, month],
+    () =>
+      selectedAccount
+        ? transactionsForAccountMonth(transactions, selectedAccount.id, month)
+        : [],
+    [transactions, selectedAccount, month],
   );
   const summary = useMemo(
     () => summarizeTransactions(monthTransactions),
     [monthTransactions],
   );
   const rows = useMemo(
-    () => budgetRows(categories, monthTransactions, budgets, month),
-    [categories, monthTransactions, budgets, month],
+    () =>
+      budgetRows(
+        categories,
+        monthTransactions,
+        budgets,
+        month,
+        accountId,
+        currency,
+      ),
+    [categories, monthTransactions, budgets, month, accountId, currency],
   );
   const budgetedRows = rows.filter((row) => row.budget);
   const totalBudget = budgetedRows.reduce(
@@ -78,11 +88,18 @@ export default function DashboardPage() {
   const budgetLeft = totalBudget - budgetedSpent;
   const budgetPct = totalBudget > 0 ? (budgetedSpent / totalBudget) * 100 : 0;
   const over = overspentCategories(rows);
-  const trend = useMemo(
-    () => monthlyTrend(transactions, month, 6),
-    [transactions, month],
+  const accountTransactions = useMemo(
+    () =>
+      selectedAccount
+        ? transactionsForAccount(transactions, selectedAccount.id)
+        : [],
+    [transactions, selectedAccount],
   );
-  const projected = projectedSpend(transactions, month);
+  const trend = useMemo(
+    () => monthlyTrend(accountTransactions, month, 6),
+    [accountTransactions, month],
+  );
+  const projected = projectedSpend(accountTransactions, month);
   const categorySpend = useMemo(
     () => spendingByCategory(monthTransactions),
     [monthTransactions],
@@ -95,6 +112,12 @@ export default function DashboardPage() {
     () => new Map(categories.map((category) => [category.id, category])),
     [categories],
   );
+  const closingBalance = selectedAccount
+    ? accountBalanceAt(selectedAccount, transactions, month)
+    : 0;
+  const openingBalance = selectedAccount
+    ? accountOpeningBalanceAt(selectedAccount, transactions, month)
+    : 0;
 
   const segments = useMemo<DonutSegment[]>(() => {
     const items = Array.from(categorySpend.entries())
@@ -115,6 +138,7 @@ export default function DashboardPage() {
 
   const firstName = (profile.fullName || "there").split(" ")[0];
   const monthLabel = formatMonth(month);
+  const nextMonthLabel = formatMonth(addMonths(month, 1));
   const savingsRate =
     summary.income > 0 ? (summary.net / summary.income) * 100 : null;
   const lastMonth = trend[trend.length - 2];
@@ -127,7 +151,9 @@ export default function DashboardPage() {
     trend.reduce((total, point) => total + point.expenses, 0) /
     Math.max(1, trend.length);
 
-  if (ready && visibleBalances.length === 0) {
+  if (!ready) return null;
+
+  if (activeAccounts.length === 0) {
     return (
       <div className="space-y-6">
         <PageHeader
@@ -154,15 +180,43 @@ export default function DashboardPage() {
     );
   }
 
+  if (!selectedAccount) return null;
+
+  const closingDisplay = accountDisplayBalance(selectedAccount, closingBalance);
+  const openingDisplay = accountDisplayBalance(selectedAccount, openingBalance);
+  const isCard = selectedAccount.type === "credit_card";
+  const balanceLabel = isCard
+    ? closingBalance > 0
+      ? "Credit balance"
+      : "Card owed"
+    : closingBalance < 0
+      ? "Overdrawn"
+      : "Closing balance";
+  const heroBalanceLabel = isCard
+    ? closingBalance > 0
+      ? "Credit balance"
+      : "Outstanding"
+    : closingBalance < 0
+      ? "Overdrawn"
+      : "Closing balance";
+  const availableCredit =
+    isCard && selectedAccount.creditLimit
+      ? Math.max(
+          0,
+          selectedAccount.creditLimit - Math.max(0, -closingBalance),
+        )
+      : null;
+
   return (
     <div className="space-y-6 sm:space-y-7">
       <PageHeader
         eyebrow="Your money"
         title={`Welcome back, ${firstName}`}
-        description={`A clear view of everything you have, owe and spent in ${monthLabel}.`}
+        description={`A clear view of ${selectedAccount.name} in ${monthLabel}. Only this account's activity counts here, and its balance carries into ${nextMonthLabel}.`}
         actions={
           <>
             <MonthPicker value={month} onChange={setMonth} />
+            <AccountSwitcher />
             <Button
               onClick={() => openTransaction()}
               className="hidden sm:inline-flex"
@@ -187,27 +241,56 @@ export default function DashboardPage() {
         <div className="pointer-events-none absolute -right-8 -top-16 size-[240px] rounded-full border border-white/10" />
         <div className="relative grid gap-7 lg:grid-cols-[1.35fr_0.9fr] lg:items-end">
           <div>
-            <div className="flex flex-wrap items-center gap-2">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/65">
-                Net position
-              </p>
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/65">
+                  Selected account
+                </p>
+                <p className="mt-1 text-[11px] text-white/50">
+                  One card or bank at a time. Switch from the selector above or
+                  the cards below.
+                </p>
+              </div>
               <span className="rounded-md bg-white/15 px-1.5 py-0.5 text-[10px] font-semibold">
-                {profile.baseCurrency}
+                {selectedAccount.currency}
               </span>
             </div>
-            <p className="mt-2 text-[38px] font-semibold leading-none tracking-[-0.045em] sm:text-[48px]">
+
+            <div className="mt-4 flex items-center gap-3">
+              <span className="flex size-11 items-center justify-center rounded-xl bg-white/15">
+                <AppIcon name={selectedAccount.icon} className="size-5" />
+              </span>
+              <div className="min-w-0">
+                <p className="truncate text-[18px] font-semibold tracking-[-0.02em]">
+                  {selectedAccount.name}
+                </p>
+                <p className="truncate text-[10px] text-white/55">
+                  {selectedAccount.type === "cash"
+                    ? selectedAccount.institution || "Cash"
+                    : selectedAccount.institution ||
+                      (isCard ? "Credit card" : "Bank account")}
+                  {selectedAccount.lastFour
+                    ? ` · •••• ${selectedAccount.lastFour}`
+                    : ""}
+                </p>
+              </div>
+            </div>
+
+            <p className="mt-6 text-[10px] font-semibold uppercase tracking-[0.12em] text-white/55">
+              {heroBalanceLabel} · {monthLabel}
+            </p>
+            <p className="mt-1 text-[34px] font-semibold leading-none tracking-[-0.045em] sm:text-[40px]">
               <Money
-                value={stats.net}
-                currency={profile.baseCurrency}
-                className="max-w-full"
-                codeClassName="text-white/60"
+                value={closingDisplay}
+                currency={selectedAccount.currency}
+                codeClassName="text-white/55"
               />
             </p>
-            <p className="mt-3 max-w-md text-[12px] leading-relaxed text-white/65 sm:text-[13px]">
-              {formatMoney(stats.assets, profile.baseCurrency)} across your
-              accounts, less {formatMoney(stats.owed, profile.baseCurrency)} on
-              cards.
+            <p className="mt-2 text-[10px] leading-relaxed text-white/55">
+              Opened at {formatMoney(openingDisplay, currency)} · closing
+              balance carries into {nextMonthLabel}
             </p>
+
             <div className="mt-5 flex flex-wrap items-center gap-1.5 sm:gap-2">
               <Button
                 variant="white"
@@ -218,33 +301,46 @@ export default function DashboardPage() {
                 Add transaction
               </Button>
               <Link
-                href="/accounts"
+                href="/transactions"
                 className="inline-flex h-11 items-center gap-1.5 rounded-xl border border-white/20 px-3 text-sm font-medium text-white transition hover:bg-white/10 sm:px-4"
               >
-                View accounts
+                View transactions
                 <ChevronRight className="size-4" />
               </Link>
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-2 rounded-2xl border border-white/15 bg-white/10 p-3 backdrop-blur-sm lg:grid-cols-1 lg:gap-0 lg:p-4">
-            <HeroStat
-              label="In this month"
-              shortLabel="In"
-              value={summary.income}
-            />
-            <HeroStat
-              label="Out this month"
-              shortLabel="Out"
-              value={summary.expenses}
-            />
-            <HeroStat
-              label="Kept this month"
-              shortLabel="Kept"
-              value={summary.net}
-              last
-              positive={summary.net >= 0}
-            />
+          <div className="rounded-2xl border border-white/15 bg-white/10 p-3 backdrop-blur-sm lg:p-4">
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-white/55">
+                This month
+              </p>
+              <span className="rounded-md bg-white/15 px-1.5 py-0.5 text-[10px] font-semibold">
+                {selectedAccount.currency}
+              </span>
+            </div>
+            <div className="grid grid-cols-3 gap-2 lg:grid-cols-1 lg:gap-0">
+              <HeroStat
+                label="In this month"
+                shortLabel="In"
+                value={summary.income}
+                currency={currency}
+              />
+              <HeroStat
+                label="Out this month"
+                shortLabel="Out"
+                value={summary.expenses}
+                currency={currency}
+              />
+              <HeroStat
+                label="Kept this month"
+                shortLabel="Kept"
+                value={summary.net}
+                currency={currency}
+                last
+                positive={summary.net >= 0}
+              />
+            </div>
           </div>
         </div>
       </section>
@@ -253,13 +349,17 @@ export default function DashboardPage() {
         <StatCard
           label="Spent this month"
           value={summary.expenses}
-          hint={`${summary.count} transactions in ${monthLabel}`}
+          currency={currency}
+          hint={`${summary.count} ${
+            summary.count === 1 ? "entry" : "entries"
+          } for ${selectedAccount.name}`}
           icon={<ArrowUpRight className="size-4" />}
           tone="brand"
         />
         <StatCard
           label="Money in"
           value={summary.income}
+          currency={currency}
           hint={
             savingsRate === null
               ? "No income recorded this month"
@@ -271,27 +371,35 @@ export default function DashboardPage() {
         <StatCard
           label={budgetLeft < 0 ? "Over budget" : "Budget left"}
           value={Math.abs(budgetLeft)}
+          currency={currency}
           hint={
             totalBudget > 0
               ? `${formatPercent(budgetPct)} of ${formatMoney(
                   totalBudget,
-                  profile.baseCurrency,
+                  currency,
                 )} used`
-              : "No budgets set for this month"
+              : "No budgets set for this account this month"
           }
           icon={<Wallet className="size-4" />}
           tone={budgetLeft < 0 ? "danger" : "neutral"}
         />
         <StatCard
-          label="Card balance"
-          value={stats.owed}
+          label={balanceLabel}
+          value={closingDisplay}
+          currency={currency}
           hint={
-            stats.owed > 0
-              ? `${formatMoney(stats.availableCredit, profile.baseCurrency)} available`
-              : "No card balance outstanding"
+            availableCredit !== null
+              ? `${formatMoney(availableCredit, currency)} available`
+              : `${monthLabel} close · carries into ${nextMonthLabel}`
           }
-          icon={<CreditCard className="size-4" />}
-          tone="neutral"
+          icon={
+            isCard ? (
+              <CreditCard className="size-4" />
+            ) : (
+              <Wallet className="size-4" />
+            )
+          }
+          tone={closingBalance < 0 ? "danger" : "neutral"}
         />
       </div>
 
@@ -302,8 +410,9 @@ export default function DashboardPage() {
               Your accounts
             </h2>
             <p className="mt-0.5 text-xs text-muted">
-              {visibleBalances.length} active account
-              {visibleBalances.length === 1 ? "" : "s"} in {profile.baseCurrency}
+              {activeAccounts.length} active account
+              {activeAccounts.length === 1 ? "" : "s"}. Select one to focus the
+              month; balances carry forward.
             </p>
           </div>
           <Link
@@ -315,8 +424,13 @@ export default function DashboardPage() {
           </Link>
         </div>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 2xl:grid-cols-6">
-          {visibleBalances.map((account) => (
-            <AccountMiniCard key={account.id} account={account} />
+          {activeAccounts.map((account) => (
+            <AccountMiniCard
+              key={account.id}
+              account={account}
+              selected={account.id === selectedAccount.id}
+              onSelect={() => setSelectedAccountId(account.id)}
+            />
           ))}
           <Link
             href="/accounts"
@@ -336,21 +450,26 @@ export default function DashboardPage() {
             <div>
               <CardTitle>Cash flow</CardTitle>
               <p className="mt-1 text-xs text-muted">
-                Expenses and income over the last six months.
+                {selectedAccount.name} expenses and income over the last six
+                months.
               </p>
             </div>
-            <Badge variant="brand">6 months</Badge>
+            <Badge variant="brand">{selectedAccount.name} · 6 months</Badge>
           </CardHeader>
           <CardContent className="pt-5">
-            <MonthlyBars data={trend} selectedMonth={month} />
+            <MonthlyBars
+              data={trend}
+              selectedMonth={month}
+              currency={currency}
+            />
             <div className="mt-5 grid grid-cols-3 gap-3 border-t border-line-soft pt-4">
               <MiniMetric
                 label="Avg. monthly spend"
-                value={formatMoney(averageSpend, profile.baseCurrency)}
+                value={formatMoney(averageSpend, currency)}
               />
               <MiniMetric
                 label="This month"
-                value={formatMoney(summary.expenses, profile.baseCurrency)}
+                value={formatMoney(summary.expenses, currency)}
               />
               <MiniMetric
                 label="vs. last month"
@@ -369,7 +488,9 @@ export default function DashboardPage() {
           <CardHeader>
             <div>
               <CardTitle>Budget health</CardTitle>
-              <p className="mt-1 text-xs text-muted">{monthLabel} plan</p>
+              <p className="mt-1 text-xs text-muted">
+                {monthLabel} · {selectedAccount.name}
+              </p>
             </div>
             <Link
               href="/budgets"
@@ -392,10 +513,7 @@ export default function DashboardPage() {
                         budgetLeft < 0 ? "text-danger" : "text-ink",
                       )}
                     >
-                      <Money
-                        value={Math.abs(budgetLeft)}
-                        currency={profile.baseCurrency}
-                      />
+                      <Money value={Math.abs(budgetLeft)} currency={currency} />
                     </p>
                   </div>
                   <span
@@ -476,8 +594,8 @@ export default function DashboardPage() {
             ) : (
               <EmptyState
                 icon={<Wallet className="size-5" />}
-                title="Set your first budget"
-                description="Give next month a plan and see overspending before it happens."
+                title={`Set a budget for ${selectedAccount.name}`}
+                description={`Give ${selectedAccount.name} a monthly plan and see overspending before it happens.`}
                 className="border-0 bg-canvas/60 py-8"
                 action={
                   <Link
@@ -499,7 +617,7 @@ export default function DashboardPage() {
             <div>
               <CardTitle>Recent activity</CardTitle>
               <p className="mt-1 text-xs text-muted">
-                The latest entries in {monthLabel}.
+                The latest entries for {selectedAccount.name} in {monthLabel}.
               </p>
             </div>
             <Link
@@ -530,6 +648,7 @@ export default function DashboardPage() {
                     }
                     onClick={() => openTransaction(transaction)}
                     compact
+                    perspectiveAccountId={selectedAccount.id}
                   />
                 ))}
               </div>
@@ -537,7 +656,7 @@ export default function DashboardPage() {
               <EmptyState
                 icon={<ReceiptIcon />}
                 title="Nothing recorded yet"
-                description={`Add the first entry for ${monthLabel} and the rest of the dashboard will fill in.`}
+                description={`Add the first entry for ${selectedAccount.name} in ${monthLabel} and the rest of the dashboard will fill in.`}
                 className="m-4 border-0 bg-canvas/60 py-8"
                 action={
                   <Button size="sm" onClick={() => openTransaction()}>
@@ -555,12 +674,12 @@ export default function DashboardPage() {
             <div>
               <CardTitle>Where it went</CardTitle>
               <p className="mt-1 text-xs text-muted">
-                {monthLabel} by category
+                {monthLabel} · {selectedAccount.name} by category
               </p>
             </div>
             {projected !== null ? (
               <Badge variant="neutral">
-                {formatMoney(projected, profile.baseCurrency)} projected
+                {formatMoney(projected, currency)} projected
               </Badge>
             ) : null}
           </CardHeader>
@@ -568,6 +687,7 @@ export default function DashboardPage() {
             <DonutChart
               segments={segments}
               total={summary.expenses}
+              currency={currency}
               centerLabel="Spent"
             />
           </CardContent>
@@ -581,12 +701,14 @@ function HeroStat({
   label,
   shortLabel,
   value,
+  currency,
   last = false,
   positive,
 }: {
   label: string;
   shortLabel?: string;
   value: number;
+  currency: string;
   last?: boolean;
   positive?: boolean;
 }) {
@@ -608,7 +730,7 @@ function HeroStat({
           positive === false ? "text-[#ffd4cc]" : "text-white",
         )}
       >
-        <Money value={value} currency="AED" codeClassName="text-white/55" />
+        <Money value={value} currency={currency} codeClassName="text-white/55" />
       </span>
     </div>
   );
@@ -617,12 +739,14 @@ function HeroStat({
 function StatCard({
   label,
   value,
+  currency,
   hint,
   icon,
   tone,
 }: {
   label: string;
   value: number;
+  currency: string;
   hint: string;
   icon: React.ReactNode;
   tone: "brand" | "success" | "danger" | "neutral";
@@ -648,20 +772,37 @@ function StatCard({
           tone === "danger" ? "text-danger" : "text-ink",
         )}
       >
-        <Money value={value} />
+        <Money value={value} currency={currency} />
       </p>
       <p className="mt-1 text-[10px] leading-relaxed text-subtle sm:text-[11px]">{hint}</p>
     </Card>
   );
 }
 
-function AccountMiniCard({ account }: { account: AccountWithBalance }) {
+function AccountMiniCard({
+  account,
+  selected,
+  onSelect,
+}: {
+  account: AccountWithBalance;
+  selected: boolean;
+  onSelect: () => void;
+}) {
   const isCard = account.type === "credit_card";
-  const display = isCard ? Math.max(0, -account.balance) : account.balance;
+  const display = accountDisplayBalance(account, account.balance);
   return (
-    <Link
-      href="/accounts"
-      className="group flex min-h-[118px] flex-col justify-between rounded-2xl border border-line-soft bg-white p-4 shadow-[0_4px_24px_rgba(0,0,0,0.02)] transition hover:-translate-y-0.5 hover:border-line focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/15"
+    <button
+      type="button"
+      onClick={onSelect}
+      aria-pressed={selected}
+      data-testid="account-mini-card"
+      data-account-id={account.id}
+      className={cn(
+        "group flex min-h-[118px] flex-col justify-between rounded-2xl border bg-white p-4 text-left shadow-[0_4px_24px_rgba(0,0,0,0.02)] transition hover:-translate-y-0.5 hover:border-line focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/15",
+        selected
+          ? "border-brand/35 ring-2 ring-brand/10"
+          : "border-line-soft",
+      )}
     >
       <div className="flex items-start justify-between gap-2">
         <span
@@ -670,7 +811,11 @@ function AccountMiniCard({ account }: { account: AccountWithBalance }) {
         >
           <AppIcon name={account.icon} className="size-4" />
         </span>
-        {isCard ? (
+        {selected ? (
+          <span className="rounded-md bg-brand-soft px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-[0.08em] text-brand">
+            Selected
+          </span>
+        ) : isCard ? (
           <span className="text-[9px] font-semibold uppercase tracking-[0.1em] text-subtle">
             Due
           </span>
@@ -687,7 +832,7 @@ function AccountMiniCard({ account }: { account: AccountWithBalance }) {
           <Money value={display} currency={account.currency} />
         </p>
       </div>
-    </Link>
+    </button>
   );
 }
 

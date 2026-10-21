@@ -105,7 +105,8 @@ export function AccountCard({
       <div className="mt-4">
         <p className="truncate text-[13px] font-semibold text-ink">{account.name}</p>
         <p className="mt-0.5 truncate text-[11px] text-subtle">
-          {account.institution ?? "Personal account"}
+          {account.institution ??
+            (account.type === "cash" ? "Cash source" : "Personal account")}
           {account.lastFour ? ` · •••• ${account.lastFour}` : ""}
         </p>
       </div>

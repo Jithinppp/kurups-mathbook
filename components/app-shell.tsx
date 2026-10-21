@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useAccountSelection } from "@/lib/account-selection";
 import { useAuth } from "@/lib/auth-context";
 import { useData } from "@/lib/data-context";
 import { initials, cn } from "@/lib/utils";
@@ -49,6 +50,7 @@ function Shell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { user, loading, signOut } = useAuth();
   const { profile, ready, error } = useData();
+  const { activeAccounts } = useAccountSelection();
   const { openTransaction } = useQuickAdd();
 
   if (loading) return <Splash />;
@@ -56,6 +58,10 @@ function Shell({ children }: { children: React.ReactNode }) {
 
   const name = profile.fullName || user.name;
   const current = navItems.find((item) => item.href === pathname);
+  const accountLabel =
+    activeAccounts.length === 0
+      ? "No accounts"
+      : `${activeAccounts.length} account${activeAccounts.length === 1 ? "" : "s"}`;
 
   return (
     <div className="min-h-dvh lg:pl-[248px]">
@@ -131,10 +137,10 @@ function Shell({ children }: { children: React.ReactNode }) {
               <LogOut className="size-4" />
             </button>
           </div>
-          <div className="mt-2.5 flex items-center justify-between border-t border-line-soft pt-2.5">
-            <span className="text-[11px] text-subtle">Base currency</span>
-            <span className="rounded-md bg-white px-1.5 py-0.5 text-[11px] font-semibold text-ink">
-              {profile.baseCurrency}
+          <div className="mt-2.5 flex items-center justify-between gap-2 border-t border-line-soft pt-2.5">
+            <span className="shrink-0 text-[11px] text-subtle">Accounts</span>
+            <span className="truncate rounded-md bg-white px-1.5 py-0.5 text-[11px] font-semibold text-ink">
+              {accountLabel}
             </span>
           </div>
           {user.isDemo ? (
@@ -158,7 +164,7 @@ function Shell({ children }: { children: React.ReactNode }) {
             </Badge>
           ) : null}
           <span className="rounded-lg border border-line-soft bg-white px-2 py-1 text-[11px] font-semibold text-muted">
-            {profile.baseCurrency}
+            {accountLabel}
           </span>
           <Link
             href="/settings"

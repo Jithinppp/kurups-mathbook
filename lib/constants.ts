@@ -1,17 +1,71 @@
 import type { CategoryInput } from "./types";
 
-export const BASE_CURRENCY = "AED";
-
+/**
+ * A practical list of currencies people actually hold accounts in. The studio
+ * never converts between them; this list only decides which native currency an
+ * account can be created with. AED and INR stay first because they are the
+ * primary currencies in the sample workspace.
+ */
 export const CURRENCIES = [
-  { code: "AED", label: "UAE Dirham", rateToAed: 1 },
-  { code: "INR", label: "Indian Rupee", rateToAed: 0.0426 },
-  { code: "USD", label: "US Dollar", rateToAed: 3.6725 },
-  { code: "EUR", label: "Euro", rateToAed: 3.99 },
-  { code: "GBP", label: "British Pound", rateToAed: 4.65 },
+  { code: "AED", label: "UAE Dirham" },
+  { code: "INR", label: "Indian Rupee" },
+  { code: "USD", label: "US Dollar" },
+  { code: "EUR", label: "Euro" },
+  { code: "GBP", label: "British Pound" },
+  { code: "SAR", label: "Saudi Riyal" },
+  { code: "QAR", label: "Qatari Riyal" },
+  { code: "KWD", label: "Kuwaiti Dinar" },
+  { code: "OMR", label: "Omani Rial" },
+  { code: "BHD", label: "Bahraini Dinar" },
+  { code: "PKR", label: "Pakistani Rupee" },
+  { code: "BDT", label: "Bangladeshi Taka" },
+  { code: "LKR", label: "Sri Lankan Rupee" },
+  { code: "NPR", label: "Nepalese Rupee" },
+  { code: "PHP", label: "Philippine Peso" },
+  { code: "CNY", label: "Chinese Yuan" },
+  { code: "JPY", label: "Japanese Yen" },
+  { code: "KRW", label: "South Korean Won" },
+  { code: "SGD", label: "Singapore Dollar" },
+  { code: "MYR", label: "Malaysian Ringgit" },
+  { code: "THB", label: "Thai Baht" },
+  { code: "IDR", label: "Indonesian Rupiah" },
+  { code: "VND", label: "Vietnamese Dong" },
+  { code: "TRY", label: "Turkish Lira" },
+  { code: "EGP", label: "Egyptian Pound" },
+  { code: "ZAR", label: "South African Rand" },
+  { code: "CAD", label: "Canadian Dollar" },
+  { code: "AUD", label: "Australian Dollar" },
+  { code: "NZD", label: "New Zealand Dollar" },
+  { code: "CHF", label: "Swiss Franc" },
+  { code: "HKD", label: "Hong Kong Dollar" },
+  { code: "SEK", label: "Swedish Krona" },
+  { code: "NOK", label: "Norwegian Krone" },
+  { code: "DKK", label: "Danish Krone" },
+  { code: "PLN", label: "Polish Zloty" },
+  { code: "BRL", label: "Brazilian Real" },
+  { code: "MXN", label: "Mexican Peso" },
+  { code: "NGN", label: "Nigerian Naira" },
+  { code: "KES", label: "Kenyan Shilling" },
+  { code: "ILS", label: "Israeli New Shekel" },
+  { code: "JOD", label: "Jordanian Dinar" },
+  { code: "TWD", label: "New Taiwan Dollar" },
 ] as const;
 
-export function rateForCurrency(currency: string) {
-  return CURRENCIES.find((item) => item.code === currency)?.rateToAed ?? 1;
+export function currencyRank(currency: string) {
+  const index = CURRENCIES.findIndex((item) => item.code === currency);
+  return index === -1 ? CURRENCIES.length : index;
+}
+
+export function sortCurrencies(values: Iterable<string>) {
+  return Array.from(new Set(values)).sort(
+    (a, b) => currencyRank(a) - currencyRank(b) || a.localeCompare(b),
+  );
+}
+
+export function currencyLabel(currency: string) {
+  return (
+    CURRENCIES.find((item) => item.code === currency)?.label ?? currency
+  );
 }
 
 export const ACCOUNT_TYPE_LABEL: Record<string, string> = {
@@ -41,18 +95,37 @@ export const CATEGORY_SEED: CategoryInput[] = [
   { name: "Other income", kind: "income", icon: "gift", color: "#686b82" },
 ];
 
-export const SUGGESTED_BUDGETS: Record<string, number> = {
-  Rent: 5200,
-  Groceries: 900,
-  Dining: 700,
-  Transport: 400,
-  Shopping: 800,
-  Utilities: 600,
-  Entertainment: 300,
-  Health: 400,
-  Family: 2500,
-  Education: 1200,
-  Subscriptions: 100,
+/**
+ * Starter budgets are native amounts for each currency. They are never
+ * converted from another currency.
+ */
+export const SUGGESTED_BUDGETS: Record<string, Record<string, number>> = {
+  AED: {
+    Rent: 5200,
+    Groceries: 900,
+    Dining: 700,
+    Transport: 400,
+    Shopping: 800,
+    Utilities: 600,
+    Entertainment: 300,
+    Health: 400,
+    Family: 2500,
+    Education: 1200,
+    Subscriptions: 100,
+  },
+  INR: {
+    Rent: 18000,
+    Groceries: 7000,
+    Dining: 5000,
+    Transport: 3000,
+    Shopping: 6000,
+    Utilities: 3500,
+    Entertainment: 2500,
+    Health: 3000,
+    Family: 10000,
+    Education: 8000,
+    Subscriptions: 800,
+  },
 };
 
 export const ACCOUNT_COLORS = [

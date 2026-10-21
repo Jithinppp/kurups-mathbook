@@ -13,7 +13,6 @@ export interface Profile {
   id: string;
   email: string;
   fullName: string;
-  baseCurrency: string;
   createdAt: string;
 }
 
@@ -52,8 +51,6 @@ export interface Transaction {
   type: TransactionType;
   amount: number;
   currency: string;
-  fxRate: number;
-  baseAmount: number;
   occurredOn: string;
   merchant: string;
   notes: string | null;
@@ -63,9 +60,11 @@ export interface Transaction {
 
 export interface Budget {
   id: string;
+  accountId: string;
   categoryId: string;
   month: string;
   amount: number;
+  currency: string;
 }
 
 export interface TransactionInput {
@@ -74,7 +73,6 @@ export interface TransactionInput {
   type: TransactionType;
   amount: number;
   currency: string;
-  fxRate: number;
   occurredOn: string;
   merchant: string;
   notes?: string | null;
@@ -101,7 +99,9 @@ export interface CategoryInput {
 }
 
 export interface BudgetInput {
+  accountId: string;
   categoryId: string;
   month: string;
   amount: number;
+  currency: string;
 }

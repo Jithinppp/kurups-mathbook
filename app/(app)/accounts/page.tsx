@@ -21,14 +21,20 @@ import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { currencyLabel } from "@/lib/constants";
 import { useData } from "@/lib/data-context";
-import { accountBalances, totals } from "@/lib/finance";
-import { formatMoney } from "@/lib/format";
+import {
+  accountBalances,
+  accountDisplayBalance,
+  totalsByCurrency,
+  type CurrencyTotals,
+} from "@/lib/finance";
+import { formatMoney, formatPercent } from "@/lib/format";
 import type { Account, AccountType } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 export default function AccountsPage() {
-  const { accounts, transactions, profile, restoreAccount } = useData();
+  const { accounts, transactions, restoreAccount } = useData();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Account | null>(null);
   const [defaultType, setDefaultType] = useState<AccountType>("bank");
@@ -43,7 +49,7 @@ export default function AccountsPage() {
   const archived = balances.filter((account) => account.isArchived);
   const cards = visible.filter((account) => account.type === "credit_card");
   const bankAndCash = visible.filter((account) => account.type !== "credit_card");
-  const stats = totals(balances);
+  const stats = totalsByCurrency(visible);
 
   function openAdd(type: AccountType) {
     setEditing(null);
@@ -77,7 +83,7 @@ export default function AccountsPage() {
       <PageHeader
         eyebrow="Accounts"
         title="Everything you spend from"
-        description="One place for bank accounts, cards and cash. Balances update as you record activity."
+        description="One place for bank accounts, cards and cash. Every balance stays in its account currency."
         actions={
           <Button onClick={() => openAdd("bank")} className="hidden sm:inline-flex">
             <Plus className="size-4" />
@@ -86,36 +92,23 @@ export default function AccountsPage() {
         }
       />
 
-      <div className="grid grid-cols-2 gap-2.5 md:grid-cols-3 md:gap-3">
-        <Stat
-          label="Total assets"
-          value={stats.assets}
-          hint="Bank and cash balances"
-          icon={<ArrowUpRight className="size-4" />}
-          tone="success"
-        />
-        <Stat
-          label="Card balance"
-          value={stats.owed}
-          hint={
-            stats.owed > 0
-              ? `${formatMoney(stats.availableCredit, profile.baseCurrency)} credit available`
-              : "Nothing outstanding"
-          }
-          icon={<ArrowDownRight className="size-4" />}
-          tone="danger"
-        />
-        <Stat
-          label="Net position"
-          value={stats.net}
-          hint={`${visible.length} active account${
-            visible.length === 1 ? "" : "s"
-          }${archived.length ? ` · ${archived.length} archived` : ""}`}
-          icon={<ShieldCheck className="size-4" />}
-          tone="brand"
-          className="col-span-2 md:col-span-1"
-        />
-      </div>
+      {visible.length > 0 ? (
+        <section>
+          <div className="mb-3">
+            <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-ink">
+              Currency positions
+            </h2>
+            <p className="mt-0.5 text-xs text-muted">
+              Each currency is counted on its own. Nothing is converted.
+            </p>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {stats.map((position) => (
+              <CurrencyPositionCard key={position.currency} position={position} />
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       {visible.length === 0 ? (
         <EmptyState
@@ -143,7 +136,7 @@ export default function AccountsPage() {
                   className="inline-flex items-center gap-1 text-xs font-medium text-brand hover:text-brand-dark"
                 >
                   <Plus className="size-3.5" />
-                  Add card
+                  Add credit card
                 </button>
               }
             />
@@ -259,11 +252,7 @@ export default function AccountsPage() {
                           : "Bank"}{" "}
                       ·{" "}
                       <Money
-                        value={
-                          account.type === "credit_card"
-                            ? Math.max(0, -account.balance)
-                            : account.balance
-                        }
+                        value={accountDisplayBalance(account, account.balance)}
                         currency={account.currency}
                       />
                     </p>
@@ -296,8 +285,9 @@ export default function AccountsPage() {
             </p>
             <p className="mt-0.5 max-w-2xl text-[11px] leading-relaxed text-muted">
               A balance is the opening amount plus income and transfers in, minus
-              expenses and transfers out. Credit card balances are negative when
-              you owe money.
+              expenses and transfers out. It is always shown in the currency set
+              on that account. Credit card balances are negative when you owe
+              money, and a card&apos;s currency cannot change once it has activity.
             </p>
           </div>
         </div>
@@ -358,38 +348,67 @@ function spanClasses(count: number, columns: 3 | 4) {
   return `${smClass} ${xlClass}`;
 }
 
-function Stat({
-  label,
-  value,
-  hint,
-  icon,
-  tone,
-  className,
-}: {
-  label: string;
-  value: number;
-  hint: string;
-  icon: React.ReactNode;
-  tone: "brand" | "success" | "danger";
-  className?: string;
-}) {
-  const styles = {
-    brand: "bg-brand-soft text-brand",
-    success: "bg-success-soft text-success-dark",
-    danger: "bg-danger-soft text-danger",
-  }[tone];
+function CurrencyPositionCard({ position }: { position: CurrencyTotals }) {
   return (
-    <Card className={cn("p-3.5 sm:p-5", className)}>
-      <div className="flex items-center justify-between">
-        <span className="text-[11px] font-medium text-muted sm:text-xs">{label}</span>
-        <span className={cn("flex size-8 items-center justify-center rounded-lg", styles)}>
-          {icon}
-        </span>
+    <Card className="p-4 sm:p-5">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-center gap-2.5">
+          <span className="flex size-9 items-center justify-center rounded-xl bg-brand-soft text-[11px] font-bold tracking-[0.04em] text-brand">
+            {position.currency}
+          </span>
+          <div>
+            <p className="text-[13px] font-semibold text-ink">
+              {currencyLabel(position.currency)}
+            </p>
+            <p className="mt-0.5 text-[11px] text-subtle">
+              {position.accountCount} active account
+              {position.accountCount === 1 ? "" : "s"}
+            </p>
+          </div>
+        </div>
       </div>
-      <p className="mt-2.5 text-[20px] font-semibold tracking-[-0.03em] text-ink sm:mt-3 sm:text-[23px]">
-        <Money value={value} />
+
+      <p className="mt-4 text-[10px] font-medium uppercase tracking-[0.1em] text-subtle">
+        Net position
       </p>
-      <p className="mt-1 text-[10px] text-subtle sm:text-[11px]">{hint}</p>
+      <p className="mt-1 text-[25px] font-semibold tracking-[-0.03em] text-ink">
+        <Money value={position.net} currency={position.currency} />
+      </p>
+
+      <div className="mt-4 grid grid-cols-2 gap-3 border-t border-line-soft pt-3">
+        <div>
+          <p className="flex items-center gap-1 text-[10px] font-medium text-subtle">
+            <ArrowUpRight className="size-3 text-success-dark" />
+            Assets
+          </p>
+          <p className="mt-1 text-[13px] font-semibold text-ink">
+            <Money value={position.assets} currency={position.currency} />
+          </p>
+        </div>
+        <div>
+          <p className="flex items-center gap-1 text-[10px] font-medium text-subtle">
+            <ArrowDownRight className="size-3 text-danger" />
+            Card owed
+          </p>
+          <p
+            className={cn(
+              "mt-1 text-[13px] font-semibold",
+              position.owed > 0 ? "text-danger" : "text-ink",
+            )}
+          >
+            <Money value={position.owed} currency={position.currency} />
+          </p>
+        </div>
+      </div>
+
+      <p className="mt-3 text-[10px] leading-relaxed text-subtle">
+        {position.owed > 0
+          ? `${formatMoney(
+              position.availableCredit,
+              position.currency,
+            )} available · ${formatPercent(position.utilization)} of credit used`
+          : "No card balance outstanding"}
+      </p>
     </Card>
   );
 }

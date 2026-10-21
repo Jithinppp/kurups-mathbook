@@ -8,9 +8,11 @@ import { cn } from "@/lib/utils";
 export function MonthlyBars({
   data,
   selectedMonth,
+  currency,
 }: {
   data: MonthPoint[];
   selectedMonth: string;
+  currency: string;
 }) {
   const max = Math.max(
     1,
@@ -46,6 +48,7 @@ export function MonthlyBars({
                   }}
                   title={`${formatMonth(point.month)} expenses: ${formatCompact(
                     point.expenses,
+                    currency,
                   )}`}
                 />
                 <div
@@ -55,6 +58,7 @@ export function MonthlyBars({
                   }}
                   title={`${formatMonth(point.month)} income: ${formatCompact(
                     point.income,
+                    currency,
                   )}`}
                 />
               </div>

@@ -110,7 +110,7 @@ export default function SignupPage() {
           Create your workspace
         </h2>
         <p className="mt-2 text-[13px] leading-relaxed text-muted">
-          One account, one base currency, and a clear view of the month.
+          One login, and every account kept in its own currency.
         </p>
 
         {!configured ? (
@@ -232,7 +232,7 @@ export default function SignupPage() {
         </Link>
 
         <p className="mt-6 text-center text-[10px] leading-relaxed text-subtle">
-          Your workspace starts with AED as its base currency.
+          Your workspace starts with a Cash account in AED.
           <br />
           Every user&apos;s data is isolated with row-level security.
         </p>

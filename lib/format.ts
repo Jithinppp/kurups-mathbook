@@ -1,12 +1,14 @@
-import { BASE_CURRENCY } from "./constants";
+export function localeForCurrency(currency: string) {
+  return currency === "INR" ? "en-IN" : "en-AE";
+}
 
 export function formatMoney(
   value: number,
-  currency = BASE_CURRENCY,
+  currency: string,
   options: { compact?: boolean; decimals?: boolean } = {},
 ) {
   const { compact = false, decimals = true } = options;
-  const formatter = new Intl.NumberFormat("en-AE", {
+  const formatter = new Intl.NumberFormat(localeForCurrency(currency), {
     style: "currency",
     currency,
     currencyDisplay: "code",
@@ -24,7 +26,7 @@ export function formatNumber(value: number, decimals = 2) {
   }).format(value);
 }
 
-export function formatSignedMoney(value: number, currency = BASE_CURRENCY) {
+export function formatSignedMoney(value: number, currency: string) {
   const sign = value < 0 ? "−" : "+";
   return `${sign}${formatMoney(value, currency)}`;
 }
@@ -35,6 +37,6 @@ export function formatPercent(value: number, decimals = 0) {
   }).format(value)}%`;
 }
 
-export function formatCompact(value: number, currency = BASE_CURRENCY) {
+export function formatCompact(value: number, currency: string) {
   return formatMoney(value, currency, { compact: true });
 }

@@ -12,11 +12,13 @@ export interface DonutSegment {
 export function DonutChart({
   segments,
   total,
+  currency,
   centerLabel,
   className,
 }: {
   segments: DonutSegment[];
   total: number;
+  currency: string;
   centerLabel?: string;
   className?: string;
 }) {
@@ -66,7 +68,7 @@ export function DonutChart({
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
           <span className="tabular text-[17px] font-semibold tracking-[-0.02em] text-ink">
-            {formatCompact(total)}
+            {formatCompact(total, currency)}
           </span>
           <span className="mt-0.5 text-[10px] font-medium uppercase tracking-[0.1em] text-subtle">
             {centerLabel ?? "Spent"}
@@ -84,7 +86,7 @@ export function DonutChart({
               {segment.label}
             </span>
             <span className="tabular text-xs font-semibold text-ink">
-              {formatCompact(segment.value)}
+              {formatCompact(segment.value, currency)}
             </span>
           </div>
         ))}

@@ -15,19 +15,25 @@ export function BudgetDialog({
   open,
   onOpenChange,
   month,
+  accountId,
+  currency,
   editing,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   month: string;
+  accountId: string;
+  currency: string;
   editing?: BudgetRow | null;
 }) {
   if (!open) return null;
   return (
     <BudgetDialogContent
-      key={editing?.category.id ?? "new"}
+      key={`${editing?.category.id ?? "new"}-${accountId}-${currency}`}
       onOpenChange={onOpenChange}
       month={month}
+      accountId={accountId}
+      currency={currency}
       editing={editing}
     />
   );
@@ -36,13 +42,18 @@ export function BudgetDialog({
 function BudgetDialogContent({
   onOpenChange,
   month,
+  accountId,
+  currency,
   editing,
 }: {
   onOpenChange: (open: boolean) => void;
   month: string;
+  accountId: string;
+  currency: string;
   editing?: BudgetRow | null;
 }) {
-  const { categories, budgets, setBudget, deleteBudget } = useData();
+  const { accounts, categories, budgets, setBudget, deleteBudget } = useData();
+  const account = accounts.find((item) => item.id === accountId);
   const expenseCategories = useMemo(
     () => categories.filter((category) => category.kind === "expense"),
     [categories],
@@ -51,6 +62,7 @@ function BudgetDialogContent({
     editing?.category.id ?? expenseCategories[0]?.id ?? "";
   const initialBudget = budgets.find(
     (budget) =>
+      budget.accountId === accountId &&
       budget.categoryId === initialCategoryId &&
       budget.month.startsWith(month),
   );
@@ -80,11 +92,13 @@ function BudgetDialogContent({
 
     setSaving(true);
     try {
-      await setBudget({ categoryId, month, amount: value });
+      await setBudget({ accountId, categoryId, month, amount: value, currency });
       toast.success(
         budgets.some(
           (budget) =>
-            budget.categoryId === categoryId && budget.month.startsWith(month),
+            budget.accountId === accountId &&
+            budget.categoryId === categoryId &&
+            budget.month.startsWith(month),
         )
           ? "Budget updated"
           : "Budget set",
@@ -122,7 +136,9 @@ function BudgetDialogContent({
   );
   const selectedBudget = budgets.find(
     (budget) =>
-      budget.categoryId === categoryId && budget.month.startsWith(month),
+      budget.accountId === accountId &&
+      budget.categoryId === categoryId &&
+      budget.month.startsWith(month),
   );
 
   return (
@@ -130,7 +146,11 @@ function BudgetDialogContent({
       open
       onOpenChange={onOpenChange}
       title={editing?.budget ? "Edit budget" : "Set a budget"}
-      description={`Plan your spending for ${formatMonth(month)}.`}
+      description={
+        account
+          ? `Plan ${currency} spending for ${account.name} in ${formatMonth(month)}.`
+          : `Plan ${currency} spending for this account in ${formatMonth(month)}.`
+      }
     >
       <div className="space-y-5">
         <Field label="Category">
@@ -141,6 +161,7 @@ function BudgetDialogContent({
               setCategoryId(nextCategoryId);
               const existing = budgets.find(
                 (budget) =>
+                  budget.accountId === accountId &&
                   budget.categoryId === nextCategoryId &&
                   budget.month.startsWith(month),
               );
@@ -180,10 +201,10 @@ function BudgetDialogContent({
           </div>
         ) : null}
 
-        <Field label="Monthly budget">
+        <Field label={`Monthly budget (${currency})`}>
           <div className="relative">
             <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-xs font-semibold text-subtle">
-              AED
+              {currency}
             </span>
             <Input
               value={amount}

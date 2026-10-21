@@ -14,7 +14,7 @@ import { AppIcon } from "@/components/app-icon";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { Field, Input, Select, Textarea } from "@/components/ui/input";
-import { rateForCurrency } from "@/lib/constants";
+import { useAccountSelection } from "@/lib/account-selection";
 import { useData } from "@/lib/data-context";
 import { todayISO } from "@/lib/dates";
 import type { Transaction, TransactionType } from "@/lib/types";
@@ -64,6 +64,7 @@ function TransactionDialogContent({
     updateTransaction,
     deleteTransaction,
   } = useData();
+  const { selectedAccountId, setSelectedAccountId } = useAccountSelection();
   const active = useMemo(
     () =>
       accounts.filter(
@@ -75,11 +76,18 @@ function TransactionDialogContent({
     [accounts, editing],
   );
 
+  const initialAccountId =
+    editing?.accountId ??
+    (active.some((account) => account.id === selectedAccountId)
+      ? selectedAccountId
+      : active[0]?.id ?? "");
+  const initialCurrency = active.find(
+    (account) => account.id === initialAccountId,
+  )?.currency;
+
   const [type, setType] = useState<TransactionType>(editing?.type ?? "expense");
   const [amount, setAmount] = useState(editing ? String(editing.amount) : "");
-  const [accountId, setAccountId] = useState(
-    editing?.accountId ?? active[0]?.id ?? "",
-  );
+  const [accountId, setAccountId] = useState(initialAccountId);
   const [categoryId, setCategoryId] = useState(
     editing?.categoryId ??
       categories.find(
@@ -89,8 +97,11 @@ function TransactionDialogContent({
   );
   const [transferAccountId, setTransferAccountId] = useState(
     editing?.transferAccountId ??
-      active.find((account) => account.id !== (editing?.accountId ?? active[0]?.id))
-        ?.id ??
+      active.find(
+        (account) =>
+          account.id !== initialAccountId &&
+          account.currency === initialCurrency,
+      )?.id ??
       "",
   );
   const [occurredOn, setOccurredOn] = useState(editing?.occurredOn ?? todayISO());
@@ -110,16 +121,55 @@ function TransactionDialogContent({
     (account) => account.id === transferAccountId,
   );
 
+  function changeAccount(nextId: string) {
+    setAccountId(nextId);
+    setError(null);
+    if (type !== "transfer") return;
+
+    const nextCurrency = active.find((account) => account.id === nextId)?.currency;
+    const currentDestination = active.find(
+      (account) => account.id === transferAccountId,
+    );
+    if (
+      !currentDestination ||
+      currentDestination.id === nextId ||
+      currentDestination.currency !== nextCurrency
+    ) {
+      setTransferAccountId(
+        active.find(
+          (account) =>
+            account.id !== nextId && account.currency === nextCurrency,
+        )?.id ?? "",
+      );
+    }
+  }
+
   function changeType(next: TransactionType) {
     setType(next);
     setError(null);
     if (next !== "transfer") {
       const first = categories.find((category) => category.kind === next);
       setCategoryId(first?.id ?? "");
-    } else if (!transferAccountId) {
-      setTransferAccountId(
-        active.find((account) => account.id !== accountId)?.id ?? "",
+    } else {
+      const sourceCurrency = active.find(
+        (account) => account.id === accountId,
+      )?.currency;
+      const destination = active.find(
+        (account) => account.id === transferAccountId,
       );
+      if (
+        !destination ||
+        destination.id === accountId ||
+        destination.currency !== sourceCurrency
+      ) {
+        setTransferAccountId(
+          active.find(
+            (account) =>
+              account.id !== accountId &&
+              account.currency === sourceCurrency,
+          )?.id ?? "",
+        );
+      }
     }
   }
 
@@ -148,7 +198,9 @@ function TransactionDialogContent({
         return;
       }
       if (destinationAccount.currency !== sourceAccount.currency) {
-        setError("Transfers between different currencies aren't supported yet.");
+        setError(
+          `Transfers stay within ${sourceAccount.currency}. Choose another ${sourceAccount.currency} account.`,
+        );
         return;
       }
     }
@@ -161,10 +213,6 @@ function TransactionDialogContent({
         type,
         amount: numericAmount,
         currency: sourceAccount.currency,
-        fxRate:
-          sourceAccount.currency === "AED"
-            ? 1
-            : rateForCurrency(sourceAccount.currency),
         occurredOn,
         merchant:
           merchant.trim() ||
@@ -187,6 +235,7 @@ function TransactionDialogContent({
           type === "transfer" ? "Transfer recorded" : "Transaction added",
         );
       }
+      setSelectedAccountId(sourceAccount.id);
       onOpenChange(false);
     } catch (saveError) {
       setError(
@@ -299,7 +348,7 @@ function TransactionDialogContent({
           <div>
             <p className="text-sm font-semibold">Add an account first</p>
             <p className="mt-1 text-xs text-muted">
-              Every transaction needs a card, bank account or cash wallet.
+              Every transaction needs a bank account, cash source or credit card.
             </p>
           </div>
           <Button
@@ -362,23 +411,34 @@ function TransactionDialogContent({
               <Field label="From">
                 <Select
                   value={accountId}
-                  onChange={(event) => setAccountId(event.target.value)}
+                  onChange={(event) => changeAccount(event.target.value)}
                 >
                   {active.map((account) => (
                     <option key={account.id} value={account.id}>
-                      {account.name}
+                      {account.name} · {account.currency}
                     </option>
                   ))}
                 </Select>
               </Field>
-              <Field label="To">
+              <Field
+                label="To"
+                hint={
+                  sourceAccount
+                    ? `${sourceAccount.currency} accounts only`
+                    : undefined
+                }
+              >
                 <Select
                   value={transferAccountId}
                   onChange={(event) => setTransferAccountId(event.target.value)}
                 >
                   <option value="">Choose account</option>
                   {active
-                    .filter((account) => account.id !== accountId)
+                    .filter(
+                      (account) =>
+                        account.id !== accountId &&
+                        account.currency === sourceAccount?.currency,
+                    )
                     .map((account) => (
                       <option key={account.id} value={account.id}>
                         {account.name}
@@ -392,7 +452,7 @@ function TransactionDialogContent({
               <Field label="Account">
                 <Select
                   value={accountId}
-                  onChange={(event) => setAccountId(event.target.value)}
+                  onChange={(event) => changeAccount(event.target.value)}
                 >
                   {active.map((account) => (
                     <option key={account.id} value={account.id}>
@@ -486,7 +546,7 @@ function TransactionDialogContent({
           {type === "transfer" ? (
             <div className="flex items-center gap-2 rounded-xl bg-brand-soft px-3 py-2.5 text-xs text-brand-dark">
               <ArrowLeftRight className="size-3.5 shrink-0" />
-              Transfers move money between accounts and are excluded from spending.
+              Transfers stay inside one currency and are excluded from spending.
             </div>
           ) : null}
         </div>

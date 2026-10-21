@@ -194,7 +194,7 @@ export default function LoginPage() {
         <p className="mt-6 text-center text-[10px] leading-relaxed text-subtle">
           By continuing you agree to keep your own books honest.
           <br />
-          Base currency is fixed to AED after setup.
+          Every account keeps its own currency after setup.
         </p>
       </div>
     </AuthShell>

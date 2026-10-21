@@ -4,11 +4,15 @@ import {
   ArrowDownLeft,
   ArrowLeftRight,
   ArrowUpRight,
+  CreditCard,
   FilterX,
   Plus,
   Search,
+  Wallet,
 } from "lucide-react";
+import Link from "next/link";
 import { useMemo, useState } from "react";
+import { AccountSwitcher } from "@/components/account-switcher";
 import { Money } from "@/components/money";
 import { MonthPicker } from "@/components/month-picker";
 import { PageHeader } from "@/components/page-header";
@@ -19,27 +23,33 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input, Select } from "@/components/ui/input";
+import { useAccountSelection } from "@/lib/account-selection";
 import { useData } from "@/lib/data-context";
-import { currentMonthKey, formatMonth } from "@/lib/dates";
+import { addMonths, currentMonthKey, formatMonth } from "@/lib/dates";
 import {
+  accountBalanceAt,
+  accountDisplayBalance,
+  accountOpeningBalanceAt,
   summarizeTransactions,
-  transactionsForMonth,
+  transactionsForAccountMonth,
 } from "@/lib/finance";
-import { formatPercent, formatSignedMoney } from "@/lib/format";
+import { formatMoney, formatPercent, formatSignedMoney } from "@/lib/format";
 import type { TransactionType } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 type TypeFilter = "all" | TransactionType;
 
 export default function TransactionsPage() {
-  const { accounts, categories, transactions, profile } = useData();
+  const { accounts, categories, transactions, deleteTransaction, ready } =
+    useData();
+  const { selectedAccount } = useAccountSelection();
   const { openTransaction } = useQuickAdd();
   const [month, setMonth] = useState(currentMonthKey());
   const [query, setQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
-  const [accountFilter, setAccountFilter] = useState("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
 
+  const currency = selectedAccount?.currency ?? "AED";
   const accountMap = useMemo(
     () => new Map(accounts.map((account) => [account.id, account])),
     [accounts],
@@ -49,25 +59,27 @@ export default function TransactionsPage() {
     [categories],
   );
   const monthTransactions = useMemo(
-    () => transactionsForMonth(transactions, month),
-    [transactions, month],
+    () =>
+      selectedAccount
+        ? transactionsForAccountMonth(transactions, selectedAccount.id, month)
+        : [],
+    [transactions, selectedAccount, month],
   );
   const summary = useMemo(
     () => summarizeTransactions(monthTransactions),
     [monthTransactions],
   );
+  const closingBalance = selectedAccount
+    ? accountBalanceAt(selectedAccount, transactions, month)
+    : 0;
+  const openingBalance = selectedAccount
+    ? accountOpeningBalanceAt(selectedAccount, transactions, month)
+    : 0;
 
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase();
     return monthTransactions.filter((transaction) => {
       if (typeFilter !== "all" && transaction.type !== typeFilter) return false;
-      if (accountFilter !== "all") {
-        if (
-          transaction.accountId !== accountFilter &&
-          transaction.transferAccountId !== accountFilter
-        )
-          return false;
-      }
       if (categoryFilter !== "all" && transaction.categoryId !== categoryFilter)
         return false;
       if (!needle) return true;
@@ -92,24 +104,64 @@ export default function TransactionsPage() {
     monthTransactions,
     query,
     typeFilter,
-    accountFilter,
     categoryFilter,
     accountMap,
     categoryMap,
   ]);
 
-  const activeFilters =
-    typeFilter !== "all" || accountFilter !== "all" || categoryFilter !== "all";
+  const activeFilters = typeFilter !== "all" || categoryFilter !== "all";
+
+  if (!ready) return null;
+
+  if (!selectedAccount) {
+    return (
+      <div className="space-y-6">
+        <PageHeader
+          eyebrow="Activity"
+          title="Transactions"
+          description="Add a bank, cash source or credit card first, then record its entries here."
+        />
+        <EmptyState
+          icon={<Wallet className="size-5" />}
+          title="No accounts yet"
+          description="Every transaction belongs to an account. Create your first one to get started."
+          action={
+            <Link
+              href="/accounts"
+              className="inline-flex h-11 items-center justify-center rounded-xl bg-brand px-4 text-sm font-medium text-white transition hover:bg-brand-dark"
+            >
+              Add an account
+            </Link>
+          }
+        />
+      </div>
+    );
+  }
+
+  const closingDisplay = accountDisplayBalance(selectedAccount, closingBalance);
+  const openingDisplay = accountDisplayBalance(selectedAccount, openingBalance);
+  const balanceLabel =
+    selectedAccount.type === "credit_card"
+      ? closingBalance > 0
+        ? "Credit balance"
+        : "Card owed"
+      : closingBalance < 0
+        ? "Overdrawn"
+        : "Closing balance";
+  const nextMonthLabel = formatMonth(addMonths(month, 1));
 
   return (
     <div className="space-y-6">
       <PageHeader
         eyebrow="Activity"
         title="Transactions"
-        description={`Every entry for ${formatMonth(month)}. Search, filter, and fix anything in a couple of taps.`}
+        description={`Every entry for ${selectedAccount.name} in ${formatMonth(
+          month,
+        )}. Only this account is shown; its balance carries forward.`}
         actions={
           <>
             <MonthPicker value={month} onChange={setMonth} />
+            <AccountSwitcher />
             <Button
               onClick={() => openTransaction()}
               className="hidden sm:inline-flex"
@@ -121,26 +173,59 @@ export default function TransactionsPage() {
         }
       />
 
-      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3">
-        <SummaryCard
-          label="Spent"
-          value={summary.expenses}
-          icon={<ArrowUpRight className="size-3.5" />}
-          tone="brand"
-        />
-        <SummaryCard
-          label="Income"
-          value={summary.income}
-          icon={<ArrowDownLeft className="size-3.5" />}
-          tone="success"
-        />
-        <SummaryCard
-          label="Net"
-          value={summary.net}
-          icon={<ArrowLeftRight className="size-3.5" />}
-          tone={summary.net >= 0 ? "neutral" : "danger"}
-          className="col-span-2 sm:col-span-1"
-        />
+      <div className="space-y-2">
+        <div className="grid auto-rows-fr grid-cols-2 gap-2.5 sm:grid-cols-4 sm:gap-3">
+          <SummaryCard
+            label="Spent"
+            value={summary.expenses}
+            currency={currency}
+            icon={<ArrowUpRight className="size-3.5" />}
+            tone="brand"
+            hint="Expenses paid from this account this month."
+          />
+          <SummaryCard
+            label="Income"
+            value={summary.income}
+            currency={currency}
+            icon={<ArrowDownLeft className="size-3.5" />}
+            tone="success"
+            hint="Money received into this account this month."
+          />
+          <SummaryCard
+            label="Net"
+            value={summary.net}
+            currency={currency}
+            icon={<ArrowLeftRight className="size-3.5" />}
+            tone={summary.net >= 0 ? "neutral" : "danger"}
+            hint="Income minus spending. Transfers move the balance without counting as income."
+          />
+          <SummaryCard
+            label={balanceLabel}
+            value={closingDisplay}
+            currency={currency}
+            icon={
+              selectedAccount.type === "credit_card" ? (
+                <CreditCard className="size-3.5" />
+              ) : (
+                <Wallet className="size-3.5" />
+              )
+            }
+            tone={
+              (selectedAccount.type === "credit_card" && closingBalance < 0) ||
+              closingBalance < 0
+                ? "danger"
+                : "neutral"
+            }
+            hint={`Opening ${formatMoney(
+              openingDisplay,
+              currency,
+            )} · carries into ${nextMonthLabel}`}
+          />
+        </div>
+        <p className="text-[10px] leading-snug text-subtle sm:hidden">
+          Opening {formatMoney(openingDisplay, currency)} · carries into{" "}
+          {nextMonthLabel}
+        </p>
       </div>
 
       <Card>
@@ -150,11 +235,11 @@ export default function TransactionsPage() {
             <Input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search transactions"
+              placeholder={`Search ${selectedAccount.name} entries`}
               className="pl-10"
             />
           </div>
-          <div className="grid gap-2 sm:grid-cols-3">
+          <div className="grid gap-2 sm:grid-cols-2">
             <Select
               value={typeFilter}
               onChange={(event) => setTypeFilter(event.target.value as TypeFilter)}
@@ -164,20 +249,6 @@ export default function TransactionsPage() {
               <option value="expense">Expenses</option>
               <option value="income">Income</option>
               <option value="transfer">Transfers</option>
-            </Select>
-            <Select
-              value={accountFilter}
-              onChange={(event) => setAccountFilter(event.target.value)}
-              aria-label="Filter by account"
-            >
-              <option value="all">All accounts</option>
-              {accounts
-                .filter((account) => !account.isArchived)
-                .map((account) => (
-                  <option key={account.id} value={account.id}>
-                    {account.name}
-                  </option>
-                ))}
             </Select>
             <Select
               value={categoryFilter}
@@ -194,7 +265,8 @@ export default function TransactionsPage() {
           </div>
           <div className="flex flex-wrap items-center justify-between gap-2 pt-0.5">
             <p className="text-[11px] text-subtle">
-              {filtered.length} of {monthTransactions.length} entries
+              {filtered.length} of {monthTransactions.length} entries for{" "}
+              {selectedAccount.name}
               {query ? ` matching “${query}”` : ""}
             </p>
             {activeFilters || query ? (
@@ -203,7 +275,6 @@ export default function TransactionsPage() {
                 onClick={() => {
                   setQuery("");
                   setTypeFilter("all");
-                  setAccountFilter("all");
                   setCategoryFilter("all");
                 }}
                 className="inline-flex items-center gap-1 text-[11px] font-medium text-brand hover:text-brand-dark"
@@ -217,7 +288,7 @@ export default function TransactionsPage() {
       </Card>
 
       <Card className="overflow-hidden">
-        <div className="hidden grid-cols-[minmax(0,1.45fr)_minmax(0,0.8fr)_minmax(0,0.9fr)_auto_20px] gap-3 border-b border-line-soft bg-canvas/60 px-5 py-2.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-subtle sm:grid">
+        <div className="hidden grid-cols-[minmax(0,1.45fr)_minmax(0,0.8fr)_minmax(0,0.9fr)_auto_60px] gap-3 border-b border-line-soft bg-canvas/60 px-5 py-2.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-subtle sm:grid">
           <span>Transaction</span>
           <span>Category</span>
           <span>Account</span>
@@ -242,6 +313,9 @@ export default function TransactionsPage() {
                     : undefined
                 }
                 onClick={() => openTransaction(transaction)}
+                onEdit={() => openTransaction(transaction)}
+                onDelete={() => deleteTransaction(transaction.id)}
+                perspectiveAccountId={selectedAccount.id}
               />
             ))}
           </div>
@@ -255,7 +329,9 @@ export default function TransactionsPage() {
             }
             description={
               monthTransactions.length === 0
-                ? `Add your first entry for ${formatMonth(month)}.`
+                ? `Add the first entry for ${selectedAccount.name} in ${formatMonth(
+                    month,
+                  )}.`
                 : "Try a different search or clear the filters to see everything."
             }
             className="m-4 border-0 bg-canvas/60 py-10"
@@ -272,7 +348,6 @@ export default function TransactionsPage() {
                   onClick={() => {
                     setQuery("");
                     setTypeFilter("all");
-                    setAccountFilter("all");
                     setCategoryFilter("all");
                   }}
                 >
@@ -287,10 +362,11 @@ export default function TransactionsPage() {
       <div className="flex items-center justify-between gap-3 rounded-2xl border border-line-soft bg-white px-4 py-3">
         <div>
           <p className="text-xs font-semibold text-ink">
-            {summary.count} entries in {formatMonth(month)}
+            {summary.count} entries for {selectedAccount.name} in{" "}
+            {formatMonth(month)}
           </p>
           <p className="mt-0.5 text-[11px] text-subtle">
-            Net {formatSignedMoney(summary.net, profile.baseCurrency)} after spending
+            Net {formatSignedMoney(summary.net, currency)} after spending
           </p>
         </div>
         <Badge variant={summary.net >= 0 ? "success" : "danger"}>
@@ -306,15 +382,19 @@ export default function TransactionsPage() {
 function SummaryCard({
   label,
   value,
+  currency,
   icon,
   tone,
   className,
+  hint,
 }: {
   label: string;
   value: number;
+  currency: string;
   icon: React.ReactNode;
   tone: "brand" | "success" | "neutral" | "danger";
   className?: string;
+  hint?: string;
 }) {
   const styles = {
     brand: "text-brand bg-brand-soft",
@@ -336,8 +416,13 @@ function SummaryCard({
           tone === "danger" ? "text-danger" : "text-ink",
         )}
       >
-        <Money value={value} />
+        <Money value={value} currency={currency} />
       </p>
+      {hint ? (
+        <p className="mt-1 hidden text-[10px] leading-snug text-subtle sm:block">
+          {hint}
+        </p>
+      ) : null}
     </Card>
   );
 }

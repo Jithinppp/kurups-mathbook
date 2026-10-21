@@ -1,7 +1,7 @@
 -- ============================================================
 --  Kurup — expense tracker schema
 --  Run this once in the Supabase SQL editor.
---  Base currency: AED
+--  Every account keeps its own currency. Nothing is converted.
 -- ============================================================
 
 create extension if not exists pgcrypto;
@@ -24,7 +24,6 @@ create table if not exists public.profiles (
   id uuid primary key references auth.users (id) on delete cascade,
   email text,
   full_name text,
-  base_currency text not null default 'AED',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -70,11 +69,9 @@ create table if not exists public.transactions (
   category_id uuid references public.categories (id) on delete set null,
   type public.transaction_type not null,
   amount numeric(14, 2) not null check (amount > 0),
+  -- Mirrors the source account's currency. The trigger below sets it on every
+  -- insert/update so a transaction can never drift into another currency.
   currency text not null default 'AED' check (char_length(currency) = 3),
-  -- AED per one unit of `currency`. AED = 1, INR ≈ 0.0426, USD ≈ 3.6725.
-  fx_rate numeric(18, 8) not null default 1 check (fx_rate > 0),
-  base_amount numeric(18, 2) generated always as
-    (round(amount * fx_rate, 2)) stored,
   occurred_on date not null default current_date,
   merchant text,
   notes text,
@@ -95,11 +92,14 @@ create table if not exists public.transactions (
 create table if not exists public.budgets (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users (id) on delete cascade,
+  account_id uuid not null references public.accounts (id) on delete cascade,
   category_id uuid not null references public.categories (id) on delete cascade,
   month date not null check (month = date_trunc('month', month)::date),
   amount numeric(14, 2) not null check (amount > 0),
+  currency text not null default 'AED' check (char_length(currency) = 3),
   created_at timestamptz not null default now(),
-  constraint budgets_user_category_month_key unique (user_id, category_id, month)
+  constraint budgets_user_account_category_month_key
+    unique (user_id, account_id, category_id, month)
 );
 
 -- ---------- indexes ----------------------------------------------
@@ -121,8 +121,8 @@ create index if not exists transactions_transfer_account_idx
 create index if not exists transactions_category_idx
   on public.transactions (category_id);
 
-create index if not exists budgets_user_month_idx
-  on public.budgets (user_id, month);
+create index if not exists budgets_user_account_month_idx
+  on public.budgets (user_id, account_id, month);
 
 -- ---------- updated_at helper ------------------------------------
 create or replace function public.set_updated_at()
@@ -155,27 +155,33 @@ create or replace function public.validate_transaction_ownership()
 returns trigger
 language plpgsql
 as $$
+declare
+  source_currency text;
+  destination_currency text;
 begin
-  if not exists (
-    select 1 from public.accounts
-    where id = new.account_id and user_id = new.user_id
-  ) then
+  select currency into source_currency
+  from public.accounts
+  where id = new.account_id and user_id = new.user_id;
+
+  if source_currency is null then
     raise exception 'Source account does not belong to this user';
   end if;
 
-  if new.transfer_account_id is not null and not exists (
-    select 1 from public.accounts
-    where id = new.transfer_account_id and user_id = new.user_id
-  ) then
-    raise exception 'Destination account does not belong to this user';
+  -- The account is the single source of truth for currency.
+  new.currency := source_currency;
+
+  if new.transfer_account_id is not null then
+    select currency into destination_currency
+    from public.accounts
+    where id = new.transfer_account_id and user_id = new.user_id;
+
+    if destination_currency is null then
+      raise exception 'Destination account does not belong to this user';
+    end if;
   end if;
 
   if new.type = 'transfer' and new.transfer_account_id is not null then
-    if (
-      select currency from public.accounts where id = new.account_id
-    ) is distinct from (
-      select currency from public.accounts where id = new.transfer_account_id
-    ) then
+    if destination_currency is distinct from source_currency then
       raise exception 'Transfers between different currencies are not supported';
     end if;
   end if;
@@ -196,6 +202,66 @@ create trigger transactions_validate_ownership
   before insert or update on public.transactions
   for each row execute function public.validate_transaction_ownership();
 
+-- An account's currency is immutable once it has ledger activity. This keeps
+-- old transactions, balances and reports in the currency they were entered in.
+create or replace function public.prevent_account_currency_change()
+returns trigger
+language plpgsql
+as $$
+begin
+  if new.currency is distinct from old.currency and exists (
+    select 1
+    from public.transactions
+    where account_id = old.id or transfer_account_id = old.id
+  ) then
+    raise exception 'Account currency cannot change after transactions exist';
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists accounts_prevent_currency_change on public.accounts;
+create trigger accounts_prevent_currency_change
+  before update of currency on public.accounts
+  for each row execute function public.prevent_account_currency_change();
+
+-- A budget belongs to one of the user's accounts, and its currency always
+-- follows that account. This prevents a budget from being attached to another
+-- tenant's account and keeps native amounts honest.
+create or replace function public.validate_budget_ownership()
+returns trigger
+language plpgsql
+as $$
+declare
+  account_currency text;
+begin
+  select currency
+    into account_currency
+  from public.accounts
+  where id = new.account_id and user_id = new.user_id;
+
+  if account_currency is null then
+    raise exception 'Budget account does not belong to this user';
+  end if;
+
+  if not exists (
+    select 1 from public.categories
+    where id = new.category_id and user_id = new.user_id
+  ) then
+    raise exception 'Budget category does not belong to this user';
+  end if;
+
+  new.currency := account_currency;
+  return new;
+end;
+$$;
+
+drop trigger if exists budgets_validate_ownership on public.budgets;
+create trigger budgets_validate_ownership
+  before insert or update on public.budgets
+  for each row execute function public.validate_budget_ownership();
+
 -- ---------- new user provisioning --------------------------------
 create or replace function public.handle_new_user()
 returns trigger
@@ -204,15 +270,14 @@ security definer
 set search_path = public
 as $$
 begin
-  insert into public.profiles (id, email, full_name, base_currency)
+  insert into public.profiles (id, email, full_name)
   values (
     new.id,
     new.email,
     coalesce(
       nullif(new.raw_user_meta_data ->> 'full_name', ''),
       split_part(coalesce(new.email, ''), '@', 1)
-    ),
-    'AED'
+    )
   )
   on conflict (id) do nothing;
 
@@ -340,11 +405,13 @@ with (security_invoker = true)
 as
 select
   user_id,
+  account_id,
+  currency,
   date_trunc('month', occurred_on)::date as month,
-  sum(case when type = 'expense' then base_amount else 0 end) as expenses,
-  sum(case when type = 'income' then base_amount else 0 end) as income
+  sum(case when type = 'expense' then amount else 0 end) as expenses,
+  sum(case when type = 'income' then amount else 0 end) as income
 from public.transactions
-group by user_id, date_trunc('month', occurred_on)::date;
+group by user_id, account_id, currency, date_trunc('month', occurred_on)::date;
 
 -- ---------- grants -----------------------------------------------
 grant usage on schema public to authenticated;
@@ -360,8 +427,10 @@ grant select on public.account_balances, public.monthly_spend to authenticated;
 --    − expenses − transfers out.
 --  • Credit cards use a negative balance when money is owed.
 --  • Transfers are one row with a source account + a destination
---    account. They are excluded from expense reports.
---  • `base_amount` is generated from amount × fx_rate (AED per
---    unit of the transaction currency), so reports stay in AED.
+--    account. They are excluded from expense reports and must stay
+--    inside one currency.
+--  • Transactions inherit the source account's currency via a trigger.
+--  • An account's currency cannot change once it has transactions.
+--  • Budgets are scoped by account + category + month.
 --  • The app also works without these tables in local demo mode.
 -- ============================================================

@@ -1,8 +1,12 @@
 "use client";
 
-import { ArrowLeftRight, ChevronRight } from "lucide-react";
+import { ArrowLeftRight, Pencil, Trash2 } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
 import { AppIcon } from "@/components/app-icon";
 import { Money } from "@/components/money";
+import { Button } from "@/components/ui/button";
+import { Dialog } from "@/components/ui/dialog";
 import { formatDate } from "@/lib/dates";
 import type { Account, Category, Transaction } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -13,17 +17,26 @@ export function TransactionRow({
   category,
   transferAccount,
   onClick,
+  onEdit,
+  onDelete,
   compact = false,
   showDate = true,
+  perspectiveAccountId,
 }: {
   transaction: Transaction;
   account?: Account;
   category?: Category;
   transferAccount?: Account;
   onClick?: () => void;
+  onEdit?: () => void;
+  onDelete?: () => Promise<void> | void;
   compact?: boolean;
   showDate?: boolean;
+  perspectiveAccountId?: string;
 }) {
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const isTransfer = transaction.type === "transfer";
   const title =
     transaction.merchant ||
@@ -37,66 +50,175 @@ export function TransactionRow({
     : `${category?.name ?? "Uncategorized"} · ${account?.name ?? "Account"}`;
   const icon = category?.icon ?? (isTransfer ? "arrow-left-right" : "wallet");
   const color = category?.color ?? "#5741d8";
+  const perspective = perspectiveAccountId ?? transaction.accountId;
+  const transferIn =
+    isTransfer &&
+    transaction.transferAccountId === perspective &&
+    transaction.accountId !== perspective;
+  const amount =
+    transaction.type === "expense" || (isTransfer && !transferIn)
+      ? -transaction.amount
+      : transaction.amount;
   const amountClass =
     transaction.type === "income"
       ? "text-success-dark"
       : transaction.type === "expense"
         ? "text-ink"
         : "text-muted";
+  const handleEdit = onEdit ?? onClick;
+  const showActions = !compact && Boolean(handleEdit || onDelete);
+
+  async function handleDelete() {
+    if (!onDelete || deleting) return;
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      await onDelete();
+      setConfirmOpen(false);
+      toast.success("Transaction deleted");
+    } catch (error) {
+      setDeleteError(
+        error instanceof Error ? error.message : "Could not delete transaction.",
+      );
+    } finally {
+      setDeleting(false);
+    }
+  }
 
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "group grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 text-left transition hover:bg-canvas/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand/25 sm:px-5",
-        compact ? "py-2.5" : "py-3",
-        "sm:grid-cols-[minmax(0,1.45fr)_minmax(0,0.8fr)_minmax(0,0.9fr)_auto_20px]",
-      )}
-    >
-      <span className="flex min-w-0 items-center gap-3">
-        <span
-          className="flex size-9 shrink-0 items-center justify-center rounded-xl"
-          style={{ backgroundColor: `${color}14`, color }}
-        >
-          {isTransfer ? (
-            <ArrowLeftRight className="size-4" strokeWidth={1.9} />
-          ) : (
-            <AppIcon name={icon} className="size-4" />
+    <>
+      <div className="flex items-center gap-1 px-4 transition hover:bg-canvas/80 sm:gap-2 sm:px-5">
+        <button
+          type="button"
+          onClick={handleEdit}
+          className={cn(
+            "grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand/25",
+            compact ? "py-2.5" : "py-3",
+            "sm:grid-cols-[minmax(0,1.45fr)_minmax(0,0.8fr)_minmax(0,0.9fr)_auto]",
           )}
-        </span>
-        <span className="min-w-0">
-          <span className="block truncate text-[13px] font-medium text-ink">
-            {title}
+        >
+          <span className="flex min-w-0 items-center gap-3">
+            <span
+              className="flex size-9 shrink-0 items-center justify-center rounded-xl"
+              style={{ backgroundColor: `${color}14`, color }}
+            >
+              {isTransfer ? (
+                <ArrowLeftRight className="size-4" strokeWidth={1.9} />
+              ) : (
+                <AppIcon name={icon} className="size-4" />
+              )}
+            </span>
+            <span className="min-w-0">
+              <span className="block truncate text-[13px] font-medium text-ink">
+                {title}
+              </span>
+              <span className="mt-0.5 block text-[11px] text-subtle sm:truncate">
+                {showDate ? `${formatDate(transaction.occurredOn)} · ` : ""}
+                {subtitle}
+              </span>
+            </span>
           </span>
-          <span className="mt-0.5 block truncate text-[11px] text-subtle">
-            {showDate ? `${formatDate(transaction.occurredOn)} · ` : ""}
-            {subtitle}
+
+          <span className="hidden min-w-0 truncate text-xs text-muted sm:block">
+            {isTransfer ? "Transfer" : category?.name ?? "Uncategorized"}
           </span>
-        </span>
-      </span>
+          <span className="hidden min-w-0 truncate text-xs text-muted sm:block">
+            {account?.name ?? "—"}
+          </span>
 
-      <span className="hidden min-w-0 truncate text-xs text-muted sm:block">
-        {isTransfer ? "Transfer" : category?.name ?? "Uncategorized"}
-      </span>
-      <span className="hidden min-w-0 truncate text-xs text-muted sm:block">
-        {account?.name ?? "—"}
-      </span>
+          <span
+            className={cn("tabular text-right text-[13px] font-semibold", amountClass)}
+          >
+            <Money
+              value={amount}
+              currency={transaction.currency}
+              showSign
+              codeClassName="hidden text-[0.72em] font-medium text-subtle sm:inline"
+            />
+          </span>
+        </button>
 
-      <span className={cn("tabular text-right text-[13px] font-semibold", amountClass)}>
-        <Money
-          value={
-            transaction.type === "expense"
-              ? -transaction.amount
-              : transaction.amount
+        {showActions ? (
+          <div className="flex shrink-0 items-center gap-0.5">
+            {handleEdit ? (
+              <button
+                type="button"
+                onClick={handleEdit}
+                aria-label={`Edit ${title}`}
+                title="Edit transaction"
+                className="flex size-7 items-center justify-center rounded-lg text-subtle transition hover:bg-white hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/25"
+              >
+                <Pencil className="size-3.5" />
+              </button>
+            ) : null}
+            {onDelete ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setDeleteError(null);
+                  setConfirmOpen(true);
+                }}
+                aria-label={`Delete ${title}`}
+                title="Delete transaction"
+                className="flex size-7 items-center justify-center rounded-lg text-subtle transition hover:bg-danger-soft hover:text-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger/25"
+              >
+                <Trash2 className="size-3.5" />
+              </button>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
+
+      {confirmOpen ? (
+        <Dialog
+          open
+          onOpenChange={(open) => {
+            if (!deleting) setConfirmOpen(open);
+          }}
+          title="Delete transaction?"
+          description="This entry will be removed from your ledger. It cannot be undone."
+          footer={
+            <div className="flex items-center justify-end gap-2">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setConfirmOpen(false)}
+                disabled={deleting}
+              >
+                Keep it
+              </Button>
+              <Button
+                type="button"
+                variant="danger"
+                onClick={handleDelete}
+                loading={deleting}
+              >
+                Delete
+              </Button>
+            </div>
           }
-          currency={transaction.currency}
-          showSign={transaction.type !== "transfer"}
-          codeClassName="text-[0.72em] font-medium text-subtle"
-        />
-      </span>
-
-      <ChevronRight className="hidden size-4 text-subtle opacity-0 transition group-hover:opacity-100 sm:block" />
-    </button>
+        >
+          <div className="rounded-2xl border border-line-soft bg-canvas px-4 py-3.5">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-ink">{title}</p>
+                <p className="mt-0.5 truncate text-xs text-muted">{subtitle}</p>
+              </div>
+              <Money
+                value={amount}
+                currency={transaction.currency}
+                showSign
+                className="shrink-0 text-sm font-semibold"
+              />
+            </div>
+          </div>
+          {deleteError ? (
+            <p className="mt-3 rounded-xl bg-danger-soft px-3 py-2.5 text-xs font-medium text-danger">
+              {deleteError}
+            </p>
+          ) : null}
+        </Dialog>
+      ) : null}
+    </>
   );
 }

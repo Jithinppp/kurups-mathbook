@@ -16,7 +16,7 @@ const TYPES: { value: AccountType; label: string; icon: ReactNode }[] = [
   { value: "cash", label: "Cash", icon: <Banknote className="size-3.5" /> },
   {
     value: "credit_card",
-    label: "Card",
+    label: "Credit card",
     icon: <CreditCard className="size-3.5" />,
   },
 ];
@@ -76,11 +76,12 @@ function AccountDialogContent({
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [confirmArchive, setConfirmArchive] = useState(false);
+  const isCash = type === "cash";
 
   async function handleSave() {
     setError(null);
     if (!name.trim()) {
-      setError("Give this account a name.");
+      setError(isCash ? "Name the cash source." : "Give this account a name.");
       return;
     }
 
@@ -109,7 +110,10 @@ function AccountDialogContent({
           : type === "cash"
             ? "banknote"
             : "landmark"),
-      lastFour: lastFour.trim() || null,
+      lastFour:
+        type === "bank" || type === "credit_card"
+          ? lastFour.trim() || null
+          : null,
     };
 
     setSaving(true);
@@ -157,7 +161,7 @@ function AccountDialogContent({
       description={
         editing
           ? "Update the details or hide this account from your workspace."
-          : "Add a bank account, cash wallet or credit card."
+          : "Add a bank account, cash source or credit card."
       }
     >
       <div className="space-y-5">
@@ -168,7 +172,7 @@ function AccountDialogContent({
               type="button"
               onClick={() => setType(option.value)}
               className={cn(
-                "flex h-9 items-center justify-center gap-1.5 rounded-[9px] text-[13px] font-medium transition",
+                "flex h-9 items-center justify-center gap-1 rounded-[9px] text-[12px] font-medium transition sm:gap-1.5 sm:text-[13px]",
                 type === option.value
                   ? "bg-white text-ink shadow-[0_1px_4px_rgba(16,24,40,0.08)]"
                   : "text-muted hover:text-ink",
@@ -181,31 +185,48 @@ function AccountDialogContent({
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="Account name">
+          <Field label={isCash ? "Source of cash" : "Account name"}>
             <Input
               value={name}
               onChange={(event) => setName(event.target.value)}
               placeholder={
-                type === "credit_card" ? "e.g. FAB Credit Card" : "e.g. Emirates NBD"
+                isCash
+                  ? "e.g. Home drawer"
+                  : type === "credit_card"
+                    ? "e.g. FAB Credit Card"
+                    : "e.g. Emirates NBD"
               }
               autoFocus
             />
           </Field>
-          <Field label="Institution" hint="optional">
+          <Field label={isCash ? "Notes" : "Institution"} hint="optional">
             <Input
               value={institution}
               onChange={(event) => setInstitution(event.target.value)}
-              placeholder="e.g. Emirates NBD"
+              placeholder={
+                isCash
+                  ? "e.g. Kept at home"
+                  : type === "credit_card"
+                    ? "e.g. FAB"
+                    : "e.g. Emirates NBD"
+              }
             />
           </Field>
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="Currency">
+          <Field
+            label="Currency"
+            hint={editing ? "Fixed after creation" : "Popular currencies"}
+          >
             <Select
               value={currency}
               onChange={(event) => setCurrency(event.target.value)}
+              disabled={Boolean(editing)}
             >
+              {CURRENCIES.some((item) => item.code === currency) ? null : (
+                <option value={currency}>{currency}</option>
+              )}
               {CURRENCIES.map((item) => (
                 <option key={item.code} value={item.code}>
                   {item.code} — {item.label}
@@ -252,7 +273,7 @@ function AccountDialogContent({
               />
             </Field>
           </div>
-        ) : (
+        ) : type === "bank" ? (
           <Field label="Last four digits" hint="optional">
             <Input
               value={lastFour}
@@ -264,7 +285,7 @@ function AccountDialogContent({
               maxLength={4}
             />
           </Field>
-        )}
+        ) : null}
 
         <Field label={type === "credit_card" ? "Card colour" : "Account colour"}>
           <div className="flex flex-wrap gap-2">

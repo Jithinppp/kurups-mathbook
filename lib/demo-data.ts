@@ -1,8 +1,4 @@
-import {
-  CATEGORY_SEED,
-  SUGGESTED_BUDGETS,
-  rateForCurrency,
-} from "./constants";
+import { CATEGORY_SEED, SUGGESTED_BUDGETS } from "./constants";
 import { currentMonthKey, dayOfMonth, monthRange, monthStart, todayISO } from "./dates";
 import type { Account, Budget, Category, Profile, Transaction } from "./types";
 import { roundMoney } from "./utils";
@@ -22,6 +18,8 @@ const DESIRED_BALANCE: Record<string, number> = {
   "acc-cash": 1150,
   "acc-fab": -3280.75,
   "acc-mashreq-card": -1840.2,
+  "acc-hdfc": 184500,
+  "acc-hdfc-card": -28450,
 };
 
 const ACCOUNT_TEMPLATES: Omit<Account, "openingBalance" | "createdAt">[] = [
@@ -85,7 +83,35 @@ const ACCOUNT_TEMPLATES: Omit<Account, "openingBalance" | "createdAt">[] = [
     lastFour: "7742",
     isArchived: false,
   },
+  {
+    id: "acc-hdfc",
+    name: "HDFC Bank",
+    institution: "HDFC Bank",
+    type: "bank",
+    currency: "INR",
+    creditLimit: null,
+    color: "#0e7490",
+    icon: "landmark",
+    lastFour: "6412",
+    isArchived: false,
+  },
+  {
+    id: "acc-hdfc-card",
+    name: "HDFC Infinia",
+    institution: "HDFC Bank",
+    type: "credit_card",
+    currency: "INR",
+    creditLimit: 200000,
+    color: "#be123c",
+    icon: "credit-card",
+    lastFour: "2208",
+    isArchived: false,
+  },
 ];
+
+const ACCOUNT_CURRENCY = new Map(
+  ACCOUNT_TEMPLATES.map((account) => [account.id, account.currency]),
+);
 
 function slug(value: string) {
   return value
@@ -140,9 +166,7 @@ export function seedDemoState(): DemoState {
         input.type === "transfer" ? null : categoryId(input.category ?? "Other"),
       type: input.type,
       amount,
-      currency: "AED",
-      fxRate: rateForCurrency("AED"),
-      baseAmount: amount,
+      currency: ACCOUNT_CURRENCY.get(input.accountId) ?? "AED",
       occurredOn,
       merchant: input.merchant,
       notes: input.notes ?? null,
@@ -435,6 +459,147 @@ export function seedDemoState(): DemoState {
         merchant: "IKEA",
       });
     }
+
+    // The INR accounts keep their own ledger. None of these amounts touch AED
+    // totals, and no exchange rate is stored or applied.
+    const inrVariation = index * 85;
+
+    add(monthKey, 1, {
+      accountId: "acc-hdfc",
+      type: "income",
+      amount: 85000,
+      category: "Salary",
+      merchant: "HDFC — Salary",
+    });
+
+    add(monthKey, 2, {
+      accountId: "acc-hdfc",
+      type: "expense",
+      amount: 18000,
+      category: "Rent",
+      merchant: "Bengaluru apartment",
+    });
+
+    add(monthKey, 3, {
+      accountId: "acc-hdfc",
+      type: "expense",
+      amount: 10000,
+      category: "Family",
+      merchant: "Family support",
+    });
+
+    add(monthKey, 6, {
+      accountId: "acc-hdfc",
+      type: "expense",
+      amount: 2800 + index * 40,
+      category: "Utilities",
+      merchant: "BESCOM",
+    });
+
+    add(monthKey, 8, {
+      accountId: "acc-hdfc",
+      type: "expense",
+      amount: 2500,
+      category: "Health",
+      merchant: "Practo",
+    });
+
+    add(monthKey, 9, {
+      accountId: "acc-hdfc",
+      type: "transfer",
+      amount: 9000,
+      merchant: "HDFC card payment",
+      transferAccountId: "acc-hdfc-card",
+    });
+
+    add(monthKey, 12, {
+      accountId: "acc-hdfc",
+      type: "expense",
+      amount: 5200 + inrVariation,
+      category: "Groceries",
+      merchant: "BigBasket",
+    });
+
+    add(monthKey, 14, {
+      accountId: "acc-hdfc",
+      type: "expense",
+      amount: 1600,
+      category: "Transport",
+      merchant: "Uber India",
+    });
+
+    add(monthKey, 13, {
+      accountId: "acc-hdfc-card",
+      type: "expense",
+      amount: 3200,
+      category: "Groceries",
+      merchant: "Zepto",
+    });
+
+    add(monthKey, 15, {
+      accountId: "acc-hdfc-card",
+      type: "expense",
+      amount: 1250 + inrVariation,
+      category: "Dining",
+      merchant: "Swiggy",
+    });
+
+    add(monthKey, 17, {
+      accountId: "acc-hdfc-card",
+      type: "expense",
+      amount: 2400,
+      category: "Shopping",
+      merchant: "Amazon.in",
+    });
+
+    add(monthKey, 19, {
+      accountId: "acc-hdfc-card",
+      type: "expense",
+      amount: 450,
+      category: "Transport",
+      merchant: "Uber",
+    });
+
+    add(monthKey, 21, {
+      accountId: "acc-hdfc-card",
+      type: "expense",
+      amount: 649,
+      category: "Subscriptions",
+      merchant: "Netflix India",
+    });
+
+    add(monthKey, 23, {
+      accountId: "acc-hdfc-card",
+      type: "expense",
+      amount: 750,
+      category: "Health",
+      merchant: "Apollo Pharmacy",
+    });
+
+    add(monthKey, 25, {
+      accountId: "acc-hdfc-card",
+      type: "expense",
+      amount: 1800,
+      category: "Shopping",
+      merchant: "Myntra",
+    });
+
+    if (index === months.length - 1) {
+      add(monthKey, 19, {
+        accountId: "acc-hdfc",
+        type: "expense",
+        amount: 3700,
+        category: "Dining",
+        merchant: "Toit",
+      });
+      add(monthKey, 20, {
+        accountId: "acc-hdfc-card",
+        type: "expense",
+        amount: 950,
+        category: "Entertainment",
+        merchant: "PVR Cinemas",
+      });
+    }
   });
 
   const net = new Map<string, number>(
@@ -463,18 +628,30 @@ export function seedDemoState(): DemoState {
   }));
 
   const budgetMonths = months.slice(-3);
+  const budgetAccountIds = [
+    "acc-enbd",
+    "acc-hdfc",
+    "acc-fab",
+    "acc-hdfc-card",
+  ];
   const budgets: Budget[] = [];
   for (const budgetMonth of budgetMonths) {
-    for (const category of categories) {
-      if (category.kind !== "expense") continue;
-      const amount = SUGGESTED_BUDGETS[category.name];
-      if (!amount) continue;
-      budgets.push({
-        id: `budget-${budgetMonth}-${category.id}`,
-        categoryId: category.id,
-        month: monthStart(budgetMonth),
-        amount,
-      });
+    for (const accountId of budgetAccountIds) {
+      const currency = ACCOUNT_CURRENCY.get(accountId);
+      if (!currency) continue;
+      for (const category of categories) {
+        if (category.kind !== "expense") continue;
+        const amount = SUGGESTED_BUDGETS[currency]?.[category.name];
+        if (!amount) continue;
+        budgets.push({
+          id: `budget-${accountId}-${budgetMonth}-${category.id}`,
+          accountId,
+          categoryId: category.id,
+          month: monthStart(budgetMonth),
+          amount,
+          currency,
+        });
+      }
     }
   }
 
@@ -484,7 +661,6 @@ export function seedDemoState(): DemoState {
       id: "demo-user",
       email: "jithin@kurup.app",
       fullName: "Jithin",
-      baseCurrency: "AED",
       createdAt,
     },
     accounts,

@@ -1,5 +1,5 @@
 import { addMonths, currentMonthKey, daysInMonth, dayOfMonth, monthRange } from "./dates";
-import { rateForCurrency } from "./constants";
+import { sortCurrencies } from "./constants";
 import type {
   Account,
   AccountWithBalance,
@@ -7,10 +7,6 @@ import type {
   Category,
   Transaction,
 } from "./types";
-
-export function transactionBase(transaction: Transaction) {
-  return transaction.baseAmount ?? transaction.amount * transaction.fxRate;
-}
 
 export function accountBalances(
   accounts: Account[],
@@ -57,16 +53,100 @@ export function transactionsForMonth(transactions: Transaction[], month: string)
     });
 }
 
+/**
+ * Every entry that touches an account, including both sides of a transfer.
+ * This is the scope used by the account switcher and the activity page.
+ */
+export function transactionsForAccount(
+  transactions: Transaction[],
+  accountId: string,
+) {
+  return transactions.filter(
+    (transaction) =>
+      transaction.accountId === accountId ||
+      transaction.transferAccountId === accountId,
+  );
+}
+
+export function transactionsForAccountMonth(
+  transactions: Transaction[],
+  accountId: string,
+  month: string,
+) {
+  return transactionsForMonth(
+    transactionsForAccount(transactions, accountId),
+    month,
+  );
+}
+
+/**
+ * Closing balance for an account at the end of a month. The next month opens
+ * with this amount, so monthly reports stay separate while balances carry.
+ */
+export function accountBalanceAt(
+  account: Pick<Account, "id" | "openingBalance">,
+  transactions: Transaction[],
+  month: string,
+) {
+  let balance = account.openingBalance;
+
+  for (const transaction of transactions) {
+    if (transaction.occurredOn.slice(0, 7) > month) continue;
+
+    if (transaction.accountId === account.id) {
+      balance +=
+        transaction.type === "income" ? transaction.amount : -transaction.amount;
+    }
+
+    if (
+      transaction.type === "transfer" &&
+      transaction.transferAccountId === account.id
+    ) {
+      balance += transaction.amount;
+    }
+  }
+
+  return balance;
+}
+
+export function accountOpeningBalanceAt(
+  account: Pick<Account, "id" | "openingBalance">,
+  transactions: Transaction[],
+  month: string,
+) {
+  return accountBalanceAt(account, transactions, addMonths(month, -1));
+}
+
+/**
+ * Credit cards are easier to scan as a positive amount owed. Banks and cash
+ * keep their signed balance so an overdraft is still visible.
+ */
+export function accountDisplayBalance(
+  account: Pick<Account, "type">,
+  balance: number,
+) {
+  return account.type === "credit_card" ? Math.abs(balance) : balance;
+}
+
+export function accountBalanceCaption(
+  account: Pick<Account, "type">,
+  balance: number,
+) {
+  if (account.type === "credit_card") {
+    return balance > 0 ? "Credit balance" : "Outstanding";
+  }
+  return balance < 0 ? "Overdrawn" : "Balance";
+}
+
 export function summarizeTransactions(transactions: Transaction[]) {
   let expenses = 0;
   let income = 0;
   let transfers = 0;
 
   for (const transaction of transactions) {
-    const amount = transactionBase(transaction);
-    if (transaction.type === "expense") expenses += amount;
-    if (transaction.type === "income") income += amount;
-    if (transaction.type === "transfer") transfers += amount;
+    if (transaction.type === "expense") expenses += transaction.amount;
+    if (transaction.type === "income") income += transaction.amount;
+    if (transaction.type === "transfer") transfers += transaction.amount;
   }
 
   return {
@@ -83,7 +163,7 @@ export function spendingByCategory(transactions: Transaction[]) {
   for (const transaction of transactions) {
     if (transaction.type !== "expense") continue;
     const key = transaction.categoryId ?? "uncategorized";
-    totals.set(key, (totals.get(key) ?? 0) + transactionBase(transaction));
+    totals.set(key, (totals.get(key) ?? 0) + transaction.amount);
   }
   return totals;
 }
@@ -94,7 +174,7 @@ export function spendingByAccount(transactions: Transaction[]) {
     if (transaction.type !== "expense") continue;
     totals.set(
       transaction.accountId,
-      (totals.get(transaction.accountId) ?? 0) + transactionBase(transaction),
+      (totals.get(transaction.accountId) ?? 0) + transaction.amount,
     );
   }
   return totals;
@@ -103,6 +183,7 @@ export function spendingByAccount(transactions: Transaction[]) {
 export interface BudgetRow {
   category: Category;
   budget: Budget | null;
+  currency: string;
   spent: number;
   remaining: number;
   progress: number;
@@ -114,11 +195,23 @@ export function budgetRows(
   transactions: Transaction[],
   budgets: Budget[],
   month: string,
+  accountId: string,
+  currency: string,
 ): BudgetRow[] {
-  const spentMap = spendingByCategory(transactions);
+  const spentMap = spendingByCategory(
+    transactions.filter(
+      (transaction) =>
+        transaction.accountId === accountId &&
+        transaction.type === "expense" &&
+        transaction.occurredOn.startsWith(month),
+    ),
+  );
   const monthBudgets = new Map(
     budgets
-      .filter((budget) => budget.month.startsWith(month))
+      .filter(
+        (budget) =>
+          budget.accountId === accountId && budget.month.startsWith(month),
+      )
       .map((budget) => [budget.categoryId, budget]),
   );
 
@@ -132,6 +225,7 @@ export function budgetRows(
       return {
         category,
         budget,
+        currency,
         spent,
         remaining,
         progress,
@@ -165,9 +259,8 @@ export function monthlyTrend(
     const month = transaction.occurredOn.slice(0, 7);
     const point = points.get(month);
     if (!point) continue;
-    const amount = transactionBase(transaction);
-    if (transaction.type === "expense") point.expenses += amount;
-    if (transaction.type === "income") point.income += amount;
+    if (transaction.type === "expense") point.expenses += transaction.amount;
+    if (transaction.type === "income") point.income += transaction.amount;
   }
 
   return months.map((month) => points.get(month)!);
@@ -176,7 +269,7 @@ export function monthlyTrend(
 export function monthExpenseTotal(transactions: Transaction[], month: string) {
   return transactionsForMonth(transactions, month)
     .filter((transaction) => transaction.type === "expense")
-    .reduce((total, transaction) => total + transactionBase(transaction), 0);
+    .reduce((total, transaction) => total + transaction.amount, 0);
 }
 
 export function projectedSpend(transactions: Transaction[], month: string) {
@@ -190,43 +283,66 @@ export function previousMonth(month: string) {
   return addMonths(month, -1);
 }
 
-export interface Totals {
+export interface CurrencyTotals {
+  currency: string;
   net: number;
   assets: number;
   owed: number;
   availableCredit: number;
   utilization: number;
+  accountCount: number;
 }
 
-export function totals(accounts: AccountWithBalance[]): Totals {
-  let net = 0;
-  let assets = 0;
-  let owed = 0;
-  let availableCredit = 0;
-  let limit = 0;
+/**
+ * Positions are grouped by the currency of the account. Nothing is converted,
+ * so an AED total and an INR total can never be added together.
+ */
+export function totalsByCurrency(accounts: AccountWithBalance[]): CurrencyTotals[] {
+  const totals = new Map<string, CurrencyTotals>();
 
   for (const account of accounts) {
-    const baseBalance = account.balance * rateForCurrency(account.currency);
-    net += baseBalance;
-    if (baseBalance > 0) assets += baseBalance;
+    const entry = totals.get(account.currency) ?? {
+      currency: account.currency,
+      net: 0,
+      assets: 0,
+      owed: 0,
+      availableCredit: 0,
+      utilization: 0,
+      accountCount: 0,
+    };
+
+    entry.accountCount += 1;
+    entry.net += account.balance;
+    if (account.balance > 0) entry.assets += account.balance;
+
     if (account.type === "credit_card") {
-      const debt = Math.max(0, -baseBalance);
-      owed += debt;
+      const debt = Math.max(0, -account.balance);
+      entry.owed += debt;
       if (account.creditLimit) {
-        const baseLimit = account.creditLimit * rateForCurrency(account.currency);
-        limit += baseLimit;
-        availableCredit += Math.max(0, baseLimit - debt);
+        entry.availableCredit += Math.max(0, account.creditLimit - debt);
       }
     }
+
+    totals.set(account.currency, entry);
   }
 
-  return {
-    net,
-    assets,
-    owed,
-    availableCredit,
-    utilization: limit > 0 ? (owed / limit) * 100 : 0,
-  };
+  for (const entry of totals.values()) {
+    const limit = accounts
+      .filter(
+        (account) =>
+          account.currency === entry.currency && account.type === "credit_card",
+      )
+      .reduce((total, account) => total + (account.creditLimit ?? 0), 0);
+    entry.utilization = limit > 0 ? (entry.owed / limit) * 100 : 0;
+  }
+
+  return sortCurrencies(totals.keys()).map((currency) => totals.get(currency)!);
+}
+
+export function currenciesForAccounts(
+  accounts: { currency: string }[],
+) {
+  return sortCurrencies(accounts.map((account) => account.currency));
 }
 
 export function overspentCategories(rows: BudgetRow[]) {

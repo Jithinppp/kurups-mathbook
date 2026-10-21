@@ -39,7 +39,27 @@ import type {
   Transaction,
   TransactionInput,
 } from "./types";
-import { roundMoney, uid } from "./utils";
+import { uid } from "./utils";
+
+function budgetWriteMessage(message: string) {
+  const lower = message.toLowerCase();
+  const missingSchema =
+    lower.includes("account_id") ||
+    lower.includes("currency") ||
+    lower.includes("schema cache") ||
+    lower.includes("does not exist") ||
+    lower.includes("could not find") ||
+    lower.includes("no unique") ||
+    lower.includes("on_conflict") ||
+    lower.includes("on conflict") ||
+    lower.includes("exclusion constraint");
+
+  if (missingSchema) {
+    return "Budgets now belong to an account. Run the latest Supabase migrations (202610210001_native_currencies.sql and 202610220001_account_scoped_budgets.sql), then try again.";
+  }
+
+  return message;
+}
 
 interface DataState {
   profile: Profile;
@@ -75,7 +95,6 @@ function fallbackProfile(name: string, email: string): Profile {
     id: "",
     email,
     fullName: name,
-    baseCurrency: "AED",
     createdAt: "",
   };
 }
@@ -95,6 +114,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<DataState>(() =>
     emptyState(fallbackProfile("", "")),
   );
+  const { accounts } = state;
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -383,15 +403,20 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   const addTransaction = useCallback(
     async (input: TransactionInput) => {
+      // The account owns the currency. Never trust a stale form value.
+      const currency =
+        accounts.find((account) => account.id === input.accountId)?.currency ??
+        input.currency;
+      const resolvedInput = { ...input, currency };
+
       if (user?.isDemo) {
         const now = new Date().toISOString();
         const transaction: Transaction = {
-          ...input,
+          ...resolvedInput,
           id: uid(),
           notes: input.notes ?? null,
           transferAccountId:
             input.type === "transfer" ? input.transferAccountId ?? null : null,
-          baseAmount: roundMoney(input.amount * input.fxRate),
           createdAt: now,
         };
         setState((current) => {
@@ -408,7 +433,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
       const { supabase, user: currentUser } = requireSupabase();
       const { data, error: insertError } = await supabase
         .from("transactions")
-        .insert({ ...transactionPayload(input), user_id: currentUser.id })
+        .insert({
+          ...transactionPayload(resolvedInput),
+          user_id: currentUser.id,
+        })
         .select("*")
         .single();
       if (insertError) throw new Error(insertError.message);
@@ -418,11 +446,16 @@ export function DataProvider({ children }: { children: ReactNode }) {
         transactions: [transaction, ...current.transactions],
       }));
     },
-    [user, requireSupabase],
+    [user, requireSupabase, accounts],
   );
 
   const updateTransaction = useCallback(
     async (id: string, input: TransactionInput) => {
+      const currency =
+        accounts.find((account) => account.id === input.accountId)?.currency ??
+        input.currency;
+      const resolvedInput = { ...input, currency };
+
       if (user?.isDemo) {
         setState((current) => {
           const next = {
@@ -431,13 +464,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
               transaction.id === id
                 ? {
                     ...transaction,
-                    ...input,
+                    ...resolvedInput,
                     notes: input.notes ?? null,
                     transferAccountId:
                       input.type === "transfer"
                         ? input.transferAccountId ?? null
                         : null,
-                    baseAmount: roundMoney(input.amount * input.fxRate),
                   }
                 : transaction,
             ),
@@ -451,7 +483,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       const { supabase, user: currentUser } = requireSupabase();
       const { data, error: updateError } = await supabase
         .from("transactions")
-        .update(transactionPayload(input))
+        .update(transactionPayload(resolvedInput))
         .eq("id", id)
         .eq("user_id", currentUser.id)
         .select("*")
@@ -465,7 +497,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         ),
       }));
     },
-    [user, requireSupabase],
+    [user, requireSupabase, accounts],
   );
 
   const deleteTransaction = useCallback(
@@ -508,21 +540,29 @@ export function DataProvider({ children }: { children: ReactNode }) {
         setState((current) => {
           const existing = current.budgets.find(
             (budget) =>
-              budget.categoryId === input.categoryId && budget.month === month,
+              budget.accountId === input.accountId &&
+              budget.categoryId === input.categoryId &&
+              budget.month === month,
           );
           const budgets = existing
             ? current.budgets.map((budget) =>
                 budget.id === existing.id
-                  ? { ...budget, amount: input.amount }
+                  ? {
+                      ...budget,
+                      amount: input.amount,
+                      currency: input.currency,
+                    }
                   : budget,
               )
             : [
                 ...current.budgets,
                 {
                   id: uid(),
+                  accountId: input.accountId,
                   categoryId: input.categoryId,
                   month,
                   amount: input.amount,
+                  currency: input.currency,
                 },
               ];
           const next = { ...current, budgets };
@@ -538,22 +578,30 @@ export function DataProvider({ children }: { children: ReactNode }) {
         .upsert(
           {
             user_id: currentUser.id,
+            account_id: input.accountId,
             category_id: input.categoryId,
             month,
             amount: input.amount,
+            currency: input.currency,
           },
-          { onConflict: "user_id,category_id,month" },
+          { onConflict: "user_id,account_id,category_id,month" },
         )
         .select("*")
         .single();
-      if (upsertError) throw new Error(upsertError.message);
+      if (upsertError) {
+        throw new Error(budgetWriteMessage(upsertError.message));
+      }
       const budget = mapBudget(data as BudgetRow);
       setState((current) => ({
         ...current,
         budgets: [
           ...current.budgets.filter(
             (item) =>
-              !(item.categoryId === budget.categoryId && item.month === budget.month),
+              !(
+                item.accountId === budget.accountId &&
+                item.categoryId === budget.categoryId &&
+                item.month === budget.month
+              ),
           ),
           budget,
         ],
@@ -567,26 +615,36 @@ export function DataProvider({ children }: { children: ReactNode }) {
       const month = `${monthInput.slice(0, 7)}-01`;
       if (inputs.length === 0) return;
 
+      const keyFor = (accountId: string, categoryId: string) =>
+        `${accountId}::${categoryId}`;
+
       if (user?.isDemo) {
         setState((current) => {
           const incoming = new Map(
-            inputs.map((input) => [input.categoryId, input.amount]),
+            inputs.map((input) => [
+              keyFor(input.accountId, input.categoryId),
+              input.amount,
+            ]),
           );
           const retained = current.budgets.filter(
             (budget) =>
               budget.month !== month ||
-              !incoming.has(budget.categoryId),
+              !incoming.has(keyFor(budget.accountId, budget.categoryId)),
           );
           const replaced = inputs.map((input) => {
             const existing = current.budgets.find(
               (budget) =>
-                budget.month === month && budget.categoryId === input.categoryId,
+                budget.month === month &&
+                budget.accountId === input.accountId &&
+                budget.categoryId === input.categoryId,
             );
             return {
               id: existing?.id ?? uid(),
+              accountId: input.accountId,
               categoryId: input.categoryId,
               month,
               amount: input.amount,
+              currency: input.currency,
             };
           });
           const next = { ...current, budgets: [...retained, ...replaced] };
@@ -602,22 +660,30 @@ export function DataProvider({ children }: { children: ReactNode }) {
         .upsert(
           inputs.map((input) => ({
             user_id: currentUser.id,
+            account_id: input.accountId,
             category_id: input.categoryId,
             month,
             amount: input.amount,
+            currency: input.currency,
           })),
-          { onConflict: "user_id,category_id,month" },
+          { onConflict: "user_id,account_id,category_id,month" },
         )
         .select("*");
-      if (upsertError) throw new Error(upsertError.message);
+      if (upsertError) {
+        throw new Error(budgetWriteMessage(upsertError.message));
+      }
       const updated = (data as BudgetRow[]).map(mapBudget);
       setState((current) => {
-        const touched = new Set(updated.map((budget) => budget.categoryId));
+        const touched = new Set(
+          updated.map((budget) => keyFor(budget.accountId, budget.categoryId)),
+        );
         return {
           ...current,
           budgets: [
             ...current.budgets.filter(
-              (budget) => budget.month !== month || !touched.has(budget.categoryId),
+              (budget) =>
+                budget.month !== month ||
+                !touched.has(keyFor(budget.accountId, budget.categoryId)),
             ),
             ...updated,
           ],

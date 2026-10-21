@@ -12,7 +12,6 @@ export interface ProfileRow {
   id: string;
   email: string | null;
   full_name: string | null;
-  base_currency: string;
   created_at: string;
 }
 
@@ -50,8 +49,6 @@ export interface TransactionRow {
   type: Transaction["type"];
   amount: number | string;
   currency: string;
-  fx_rate: number | string;
-  base_amount: number | string;
   occurred_on: string;
   merchant: string | null;
   notes: string | null;
@@ -62,9 +59,11 @@ export interface TransactionRow {
 export interface BudgetRow {
   id: string;
   user_id: string;
+  account_id?: string | null;
   category_id: string;
   month: string;
   amount: number | string;
+  currency?: string | null;
   created_at: string;
 }
 
@@ -73,7 +72,6 @@ export function mapProfile(row: ProfileRow): Profile {
     id: row.id,
     email: row.email ?? "",
     fullName: row.full_name ?? "",
-    baseCurrency: row.base_currency || "AED",
     createdAt: row.created_at,
   };
 }
@@ -114,8 +112,6 @@ export function mapTransaction(row: TransactionRow): Transaction {
     type: row.type,
     amount: Number(row.amount),
     currency: row.currency,
-    fxRate: Number(row.fx_rate),
-    baseAmount: Number(row.base_amount),
     occurredOn: row.occurred_on,
     merchant: row.merchant ?? "",
     notes: row.notes,
@@ -127,9 +123,11 @@ export function mapTransaction(row: TransactionRow): Transaction {
 export function mapBudget(row: BudgetRow): Budget {
   return {
     id: row.id,
+    accountId: row.account_id ?? "",
     categoryId: row.category_id,
     month: row.month,
     amount: Number(row.amount),
+    currency: row.currency || "AED",
   };
 }
 
@@ -154,7 +152,6 @@ export function transactionPayload(input: TransactionInput) {
     type: input.type,
     amount: input.amount,
     currency: input.currency,
-    fx_rate: input.fxRate,
     occurred_on: input.occurredOn,
     merchant: input.merchant.trim() || "Untitled",
     notes: input.notes?.trim() || null,
