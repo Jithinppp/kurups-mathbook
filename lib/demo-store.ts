@@ -3,7 +3,7 @@ import { seedDemoState, type DemoState } from "./demo-data";
 
 // v3 scopes budgets to accounts. Bumping the key seeds the new account-first
 // demo instead of leaving a returning visitor on the currency-first sample.
-const STORAGE_KEY = "kurup.demo.v3";
+const STORAGE_KEY = "asharibook.demo.v3";
 
 export function loadDemoState(): DemoState {
   if (typeof window === "undefined") return seedDemoState();

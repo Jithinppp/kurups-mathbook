@@ -23,7 +23,7 @@ import {
   mapTransaction,
   transactionPayload,
   type AccountRow,
-  type BudgetRow,
+  type BudgetDbRow,
   type CategoryRow,
   type ProfileRow,
   type TransactionRow,
@@ -228,7 +228,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
           accounts: (accountsResult.data as AccountRow[]).map(mapAccount),
           categories: (categoriesResult.data as CategoryRow[]).map(mapCategory),
           transactions: transactionRows.map(mapTransaction),
-          budgets: (budgetsResult.data as BudgetRow[]).map(mapBudget),
+          budgets: (budgetsResult.data as BudgetDbRow[]).map(mapBudget),
         });
         setReady(true);
       } catch (loadError) {
@@ -591,7 +591,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       if (upsertError) {
         throw new Error(budgetWriteMessage(upsertError.message));
       }
-      const budget = mapBudget(data as BudgetRow);
+      const budget = mapBudget(data as BudgetDbRow);
       setState((current) => ({
         ...current,
         budgets: [
@@ -672,7 +672,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       if (upsertError) {
         throw new Error(budgetWriteMessage(upsertError.message));
       }
-      const updated = (data as BudgetRow[]).map(mapBudget);
+      const updated = (data as BudgetDbRow[]).map(mapBudget);
       setState((current) => {
         const touched = new Set(
           updated.map((budget) => keyFor(budget.accountId, budget.categoryId)),

@@ -28,11 +28,11 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-const DEMO_COOKIE = "kurup-demo";
-const DEMO_USER_KEY = "kurup.demo.user";
+const DEMO_COOKIE = "asharibook-demo";
+const DEMO_USER_KEY = "asharibook.demo.user";
 const DEMO_USER: AppUser = {
   id: "demo-user",
-  email: "jithin@kurup.app",
+  email: "jithin@asharibook.app",
   name: "Jithin",
   isDemo: true,
 };

@@ -154,7 +154,7 @@ function Shell({ children }: { children: React.ReactNode }) {
       </aside>
 
       <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-line-soft bg-canvas/85 px-4 backdrop-blur-xl lg:hidden">
-        <Link href="/" aria-label="Kurup home">
+        <Link href="/" aria-label="AshariBook home">
           <Logo />
         </Link>
         <div className="flex items-center gap-2">

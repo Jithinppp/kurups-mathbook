@@ -67,7 +67,7 @@ export default function LoginPage() {
           Welcome back
         </p>
         <h2 className="mt-2 text-[30px] font-semibold leading-tight tracking-[-0.04em] text-ink">
-          Sign in to Kurup
+          Sign in to AshariBook
         </h2>
         <p className="mt-2 text-[13px] leading-relaxed text-muted">
           Pick up where the month left off.
@@ -179,7 +179,7 @@ export default function LoginPage() {
         <div className="mt-5 flex items-center gap-3">
           <span className="h-px flex-1 bg-line-soft" />
           <span className="text-[10px] font-medium uppercase tracking-[0.12em] text-subtle">
-            New to Kurup?
+            New to AshariBook?
           </span>
           <span className="h-px flex-1 bg-line-soft" />
         </div>

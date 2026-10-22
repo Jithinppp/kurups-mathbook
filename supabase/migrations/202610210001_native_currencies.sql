@@ -1,5 +1,5 @@
 -- ============================================================
---  Kurup — native currencies migration
+--  AshariBook — native currencies migration
 --  Run once in the Supabase SQL editor on an existing project.
 --  Back up the project first. Existing transaction amounts and account
 --  currencies are preserved; only the conversion columns are dropped.

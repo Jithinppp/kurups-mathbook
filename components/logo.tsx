@@ -34,7 +34,7 @@ export function Logo({
             tone === "light" ? "text-white" : "text-ink",
           )}
         >
-          Kurup
+          AshariBook
         </span>
       ) : null}
     </div>

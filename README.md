@@ -1,9 +1,9 @@
-# Kurup
+# AshariBook
 
 A personal expense tracker for cards, cash and the month ahead. Built with
 Next.js 16 and Supabase. Every account keeps its own currency.
 
-Kurup replaces the spreadsheet with a calmer flow: add accounts, record expenses
+AshariBook replaces the spreadsheet with a calmer flow: add accounts, record expenses
 in a few taps, set category budgets, and see exactly where the month went —
 without converting AED and INR into one misleading total.
 
@@ -17,10 +17,19 @@ without converting AED and INR into one misleading total.
 - Account-first dashboard: select a bank, cash source or card, then see that account's month, cash-flow trend and category breakdown
 - Per-account category budgets with over-budget warnings
 - Fast transaction sheet with category chips, same-currency transfer support, and explicit edit and delete actions
-- Mobile-first layout with a desktop sidebar and a mobile bottom bar
+- Responsive web app with a desktop sidebar and a mobile bottom bar
+- Native iOS/Android companion app with the same account-first workspace
 - Native currency ledgers: an AED card stays AED, an INR card stays INR
 - A practical list of popular account currencies, from AED and INR to USD, EUR, GBP, SAR, JPY and more
 - Local demo workspace with both AED and INR sample activity, available with or without Supabase connected
+
+The repository is an npm workspace with three parts:
+
+```text
+app/, components/, lib/   Next.js web app
+mobile/                   Expo React Native app
+packages/shared/          Domain types, finance math, dates, formatting, demo seed and mappers
+```
 
 ## Run it
 
@@ -36,6 +45,45 @@ the same button appears as a compact secondary action on the sign-in screen.
 
 The demo is stored in the browser's `localStorage`. Reset it from
 **Settings → Workspace & data**.
+
+## Run the mobile app
+
+The Expo app uses the same Supabase project and the same account-first rules as
+the web app. Install dependencies once from the repository root, then start
+Expo:
+
+```bash
+npm install
+npm run mobile
+```
+
+Expo prints a QR code for Expo Go. You can also open a local target directly:
+
+```bash
+npm run mobile:android
+npm run mobile:ios      # macOS only
+npm run mobile:web
+npm run mobile:typecheck
+```
+
+Create `mobile/.env.local` (never commit it) with the same project credentials:
+
+```bash
+EXPO_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+EXPO_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+```
+
+The mobile demo works with or without these values. The demo state and live
+read cache are stored with AsyncStorage on the device.
+
+For live email confirmation on mobile, add these Supabase Auth redirect URLs:
+
+- `asharibook://auth/callback` for development builds and production builds
+- `exp://*/--/auth/callback` while testing with Expo Go
+
+The callback route exchanges the PKCE code. Native builds use the
+`app.asharibook.mobile` bundle/package identifier and the `asharibook://`
+scheme.
 
 ## Connect Supabase
 
@@ -128,22 +176,33 @@ interface before creating a real account.
 ## Scripts
 
 ```bash
-npm run dev        # development server
-npm run build      # production build
-npm run start      # serve the production build
-npm run lint       # eslint
-npm run typecheck  # tsc --noEmit
+npm run dev             # Next.js development server
+npm run build           # production web build
+npm run start           # serve the production web build
+npm run lint            # eslint (web + mobile)
+npm run typecheck       # web TypeScript
+npm run mobile          # Expo dev server
+npm run mobile:android  # open the Android target
+npm run mobile:ios      # open the iOS target (macOS only)
+npm run mobile:web      # open the Expo web target
+npm run mobile:typecheck
+npm run dev:all         # web and Expo side by side
 ```
 
 ## Structure
 
 ```text
 app/
-  (app)/            protected workspace: dashboard, transactions, accounts, budgets, settings
+  (app)/            protected web workspace: dashboard, transactions, accounts, budgets, settings
   (auth)/           login and sign up
   auth/             Supabase confirmation callbacks
-components/         app shell, UI primitives, charts, dialogs
-lib/                auth context, data context, finance math, demo seed, Supabase clients
+components/         web app shell, UI primitives, charts, dialogs
+lib/                web auth/data contexts and shared-package re-exports
+mobile/
+  src/app/          Expo Router routes: auth group, tabs, transaction/budget/account modals
+  src/components/   native UI primitives, charts, account/transaction/budget forms
+  src/contexts/     mobile auth, data, selected-account and toast providers
+packages/shared/    types, finance, dates, formatting, demo seed, Supabase mappers
 supabase/schema.sql database schema, RLS, triggers and views
 supabase/migrations/ upgrade SQL for existing projects
 proxy.ts            Next.js 16 proxy for session refresh + route protection
@@ -162,4 +221,9 @@ DESIGN.md           Kraken-inspired design language used for the UI
 - Existing budgets are attached to the first account in their currency by the
   account-scoped budgets migration. Plans with no matching account are removed.
 - The old Excel workbook is not imported. This is a fresh start.
-- The app is web-first; the layout is designed to work well down to small phones.
+- The web app is responsive down to small phones; the Expo app gives the same
+  workspace a native tab bar, bottom-sheet pickers and full-screen forms.
+- Mobile write operations require a network connection. Reads of live data are
+  cached on the device, and the demo workspace is fully local.
+- Windows cannot run the iOS Simulator. Use Expo Go on a physical iPhone, a Mac,
+  or an EAS build to test iOS.

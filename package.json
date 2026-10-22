@@ -1,5 +1,5 @@
 {
-  "name": "kurup",
+  "name": "asharibook",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -7,7 +7,13 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "mobile": "npm --workspace @asharibook/mobile run start",
+    "mobile:android": "npm --workspace @asharibook/mobile run android",
+    "mobile:ios": "npm --workspace @asharibook/mobile run ios",
+    "mobile:web": "npm --workspace @asharibook/mobile run web",
+    "mobile:typecheck": "npm --workspace @asharibook/mobile run typecheck",
+    "dev:all": "concurrently -n web,mobile -c blue,magenta \"npm run dev\" \"npm run mobile\""
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",
@@ -18,7 +24,8 @@
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "sonner": "^2.0.8",
-    "tailwind-merge": "^3.7.0"
+    "tailwind-merge": "^3.7.0",
+    "@asharibook/shared": "*"
   },
   "devDependencies": {
     "@tailwindcss/turbopack": "^4",
@@ -28,6 +35,11 @@
     "eslint": "^9",
     "eslint-config-next": "16.4.2",
     "tailwindcss": "^4",
-    "typescript": "^5"
-  }
+    "typescript": "^5",
+    "concurrently": "^9.2.1"
+  },
+  "workspaces": [
+    "mobile",
+    "packages/*"
+  ]
 }

@@ -305,7 +305,7 @@ export default function SettingsPage() {
             <span className="text-[11px] font-bold">K</span>
           </span>
           <div>
-            <p className="text-xs font-semibold text-ink">Kurup</p>
+            <p className="text-xs font-semibold text-ink">AshariBook</p>
             <p className="text-[11px] text-subtle">
               A quieter way to keep the month honest.
             </p>

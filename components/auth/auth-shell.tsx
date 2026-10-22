@@ -94,7 +94,7 @@ export function AuthShell({ children }: { children: ReactNode }) {
           <div className="w-full max-w-[400px]">{children}</div>
         </div>
         <div className="flex items-center justify-between gap-4 text-[10px] text-subtle">
-          <span>Kurup · Personal finance</span>
+          <span>AshariBook · Personal finance</span>
           <span className="hidden sm:inline">Private by design</span>
         </div>
       </main>

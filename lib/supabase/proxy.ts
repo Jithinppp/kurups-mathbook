@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 const PUBLIC_PATHS = ["/login", "/signup"];
 const AUTH_PREFIX = "/auth";
-const DEMO_COOKIE = "kurup-demo";
+const DEMO_COOKIE = "asharibook-demo";
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;

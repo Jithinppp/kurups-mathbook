@@ -1,5 +1,5 @@
 -- ============================================================
---  Kurup — account-scoped budgets migration
+--  AshariBook — account-scoped budgets migration
 --  Run after 202610210001_native_currencies.sql.
 --
 --  Budgets now belong to one bank, cash source or credit card instead

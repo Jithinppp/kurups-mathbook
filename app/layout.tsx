@@ -9,7 +9,7 @@ const spaceGrotesk = Space_Grotesk({
 });
 
 export const metadata: Metadata = {
-  title: "Kurup — Every dirham, accounted for",
+  title: "AshariBook — Every dirham, accounted for",
   description:
     "A calm, fast expense tracker for cards, cash, budgets and the months ahead.",
 };

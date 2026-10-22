@@ -1,5 +1,5 @@
 -- ============================================================
---  Kurup — expense tracker schema
+--  AshariBook — expense tracker schema
 --  Run this once in the Supabase SQL editor.
 --  Every account keeps its own currency. Nothing is converted.
 -- ============================================================
