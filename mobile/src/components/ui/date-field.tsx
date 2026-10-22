@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type CSSProperties } from "react";
 import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { CalendarDays } from "lucide-react-native";
@@ -28,15 +28,33 @@ export function DateField({
   return (
     <View style={styles.field}>
       <Text style={styles.label}>{label}</Text>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={label}
-        onPress={() => setOpen(true)}
-        style={styles.row}
-      >
-        <CalendarDays color={colors.brand} size={16} />
-        <Text style={styles.value}>{formatDate(value, "long")}</Text>
-      </Pressable>
+      {Platform.OS === "web" ? (
+        <View style={styles.row}>
+          <CalendarDays color={colors.brand} size={16} />
+          <Text style={styles.value}>{formatDate(value, "long")}</Text>
+          <input
+            type="date"
+            value={value}
+            aria-label={label}
+            onChange={(event) => {
+              if (event.currentTarget.value) {
+                onChange(event.currentTarget.value);
+              }
+            }}
+            style={webInput}
+          />
+        </View>
+      ) : (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={label}
+          onPress={() => setOpen(true)}
+          style={styles.row}
+        >
+          <CalendarDays color={colors.brand} size={16} />
+          <Text style={styles.value}>{formatDate(value, "long")}</Text>
+        </Pressable>
+      )}
 
       {Platform.OS === "ios" ? (
         <Sheet visible={open} onClose={() => setOpen(false)} title={label}>
@@ -77,3 +95,19 @@ const styles = StyleSheet.create({
   },
   value: { flex: 1, fontFamily: font.medium, fontSize: 13, color: colors.ink },
 });
+
+const webInput: CSSProperties = {
+  position: "absolute",
+  top: 0,
+  left: 0,
+  right: 0,
+  bottom: 0,
+  width: "100%",
+  height: "100%",
+  border: "none",
+  margin: 0,
+  padding: 0,
+  opacity: 0,
+  cursor: "pointer",
+  zIndex: 1,
+};
