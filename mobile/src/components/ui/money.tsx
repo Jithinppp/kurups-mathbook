@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View } from "react-native";
-import { formatNumber } from "@asharibook/shared";
+import { currencySymbol, formatCompactNumber, formatNumber } from "@asharibook/shared";
 
 import { colors, font } from "@/lib/theme";
 
@@ -10,6 +10,9 @@ export function Money({
   color = colors.ink,
   size = 16,
   weight = "semibold",
+  display = "code",
+  compact = false,
+  compactFrom = 100_000,
 }: {
   value: number;
   currency: string;
@@ -17,6 +20,9 @@ export function Money({
   color?: string;
   size?: number;
   weight?: "regular" | "medium" | "semibold" | "bold";
+  display?: "code" | "symbol";
+  compact?: boolean;
+  compactFrom?: number;
 }) {
   const negative = value < 0;
   const prefix = showSign ? (negative ? "−" : "+") : negative ? "−" : "";
@@ -28,25 +34,37 @@ export function Money({
         : weight === "bold"
           ? font.bold
           : font.semibold;
+  const amount =
+    compact && Math.abs(value) >= compactFrom
+      ? formatCompactNumber(value, currency)
+      : formatNumber(Math.abs(value), 2);
+  const currencyLabel = display === "symbol" ? currencySymbol(currency) : currency;
+
   return (
     <View style={styles.row}>
       <Text style={[styles.amount, { color, fontFamily: family, fontSize: size }]}>
         {prefix}
       </Text>
       <Text
+        numberOfLines={1}
         style={[
           styles.code,
           {
             color,
             fontFamily: family,
-            fontSize: Math.max(9, size * 0.62),
+            fontSize: Math.max(9, size * 0.64),
           },
         ]}
       >
-        {currency}
+        {currencyLabel}
       </Text>
-      <Text style={[styles.amount, { color, fontFamily: family, fontSize: size }]}>
-        {formatNumber(Math.abs(value), 2)}
+      <Text
+        numberOfLines={1}
+        adjustsFontSizeToFit
+        minimumFontScale={0.72}
+        style={[styles.amount, { color, fontFamily: family, fontSize: size }]}
+      >
+        {amount}
       </Text>
     </View>
   );

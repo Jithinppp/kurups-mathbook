@@ -272,31 +272,34 @@ export default function OverviewScreen() {
               </View>
 
               <View style={styles.heroFooter}>
-                <View>
+                <View style={styles.heroFooterRow}>
                   <Text style={styles.heroFooterLabel}>Spent</Text>
                   <Money
                     value={summary.expenses}
                     currency={selectedAccount.currency}
-                    size={14}
+                    size={13}
                     color={colors.white}
+                    display="symbol"
                   />
                 </View>
-                <View>
+                <View style={styles.heroFooterRow}>
                   <Text style={styles.heroFooterLabel}>Income</Text>
                   <Money
                     value={summary.income}
                     currency={selectedAccount.currency}
-                    size={14}
+                    size={13}
                     color={colors.white}
+                    display="symbol"
                   />
                 </View>
-                <View>
+                <View style={styles.heroFooterRow}>
                   <Text style={styles.heroFooterLabel}>Net</Text>
                   <Money
                     value={summary.net}
                     currency={selectedAccount.currency}
-                    size={14}
+                    size={13}
                     color={colors.white}
+                    display="symbol"
                     showSign
                   />
                 </View>
@@ -508,7 +511,7 @@ function StatCard({
       <View style={styles.statIcon}>{icon}</View>
       <Text style={styles.statLabel}>{label}</Text>
       {currency ? (
-        <Money value={value} currency={currency} size={15} />
+        <Money value={value} currency={currency} size={13} display="symbol" compact />
       ) : (
         <Text style={styles.statValue}>{Math.round(value)}</Text>
       )}
@@ -605,14 +608,24 @@ const styles = StyleSheet.create({
     color: "rgba(255,255,255,0.68)",
   },
   heroOpening: { fontFamily: font.regular, fontSize: 10, color: "rgba(255,255,255,0.55)" },
-  heroFooter: { flexDirection: "row", justifyContent: "space-between", gap: 10 },
+  heroFooter: {
+    borderTopWidth: 1,
+    borderTopColor: "rgba(255,255,255,0.14)",
+    paddingTop: 12,
+    gap: 7,
+  },
+  heroFooterRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+  },
   heroFooterLabel: {
     fontFamily: font.medium,
     fontSize: 8,
     letterSpacing: 0.9,
     textTransform: "uppercase",
     color: "rgba(255,255,255,0.58)",
-    marginBottom: 2,
   },
   statsRow: { flexDirection: "row", gap: 9 },
   statCard: {
@@ -622,7 +635,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.lineSoft,
     backgroundColor: colors.surface,
-    padding: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 10,
   },
   statIcon: {
     width: 28,
