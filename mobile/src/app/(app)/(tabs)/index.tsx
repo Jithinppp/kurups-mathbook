@@ -25,7 +25,9 @@ import {
   accountDisplayBalance,
   accountOpeningBalanceAt,
   budgetRows,
+  currencySymbol,
   currentMonthKey,
+  formatCompactNumber,
   formatMonth,
   initials,
   monthlyTrend,
@@ -265,6 +267,9 @@ export default function OverviewScreen() {
                   size={32}
                   color={colors.white}
                   weight="semibold"
+                  display="symbol"
+                  compact
+                  compactFrom={1_000_000_000}
                 />
                 <Text style={styles.heroOpening}>
                   Opened at {formatCompact(opening, selectedAccount.currency)}
@@ -345,7 +350,13 @@ export default function OverviewScreen() {
               {totalBudget > 0 ? (
                 <View style={styles.budgetHealth}>
                   <View style={styles.budgetNumbers}>
-                    <Money value={totalBudgetSpent} currency={selectedAccount.currency} size={22} />
+                    <Money
+                      value={totalBudgetSpent}
+                      currency={selectedAccount.currency}
+                      size={22}
+                      display="symbol"
+                      compact
+                    />
                     <Text style={styles.budgetOf}>
                       of {formatMoneyShort(totalBudget, selectedAccount.currency)}
                     </Text>
@@ -520,9 +531,13 @@ function StatCard({
 }
 
 function formatMoneyShort(value: number, currency: string) {
-  return `${currency} ${new Intl.NumberFormat(currency === "INR" ? "en-IN" : "en-AE", {
-    maximumFractionDigits: 0,
-  }).format(Math.abs(value))}`;
+  const formatted =
+    Math.abs(value) >= 1_000_000
+      ? formatCompactNumber(value, currency)
+      : new Intl.NumberFormat(currency === "INR" ? "en-IN" : "en-AE", {
+          maximumFractionDigits: 0,
+        }).format(Math.abs(value));
+  return `${currencySymbol(currency)} ${formatted}`;
 }
 
 function formatNumberShort(value: number) {
@@ -530,7 +545,7 @@ function formatNumberShort(value: number) {
 }
 
 function formatCompact(value: number, currency: string) {
-  return `${currency} ${new Intl.NumberFormat(currency === "INR" ? "en-IN" : "en-AE", {
+  return `${currencySymbol(currency)} ${new Intl.NumberFormat(currency === "INR" ? "en-IN" : "en-AE", {
     notation: "compact",
     maximumFractionDigits: 1,
   }).format(Math.abs(value))}`;

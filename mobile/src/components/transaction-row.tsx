@@ -85,6 +85,9 @@ export function TransactionRow({
           showSign
           size={13}
           color={amountColor}
+          display="symbol"
+          compact
+          compactFrom={1_000_000}
         />
       </Pressable>
       {onActions ? (

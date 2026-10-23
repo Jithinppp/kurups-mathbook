@@ -208,6 +208,8 @@ export default function AccountsScreen() {
                     currency={account.currency}
                     size={12}
                     color={account.balance < 0 ? colors.danger : colors.ink}
+                    display="symbol"
+                    compact
                   />
                   <ChevronRight color={colors.subtle} size={15} />
                 </Pressable>

@@ -370,7 +370,13 @@ function SummaryCard({
   return (
     <View style={styles.summaryCard}>
       <Text style={styles.summaryLabel}>{label}</Text>
-      <Money value={value} currency={currency} size={16} />
+      <Money
+        value={value}
+        currency={currency}
+        size={14}
+        display="symbol"
+        compact
+      />
       <Text style={styles.summaryCaption} numberOfLines={1}>
         {caption}
       </Text>

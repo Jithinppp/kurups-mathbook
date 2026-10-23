@@ -1,6 +1,10 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import type { AccountWithBalance } from "@asharibook/shared";
-import { CreditCard } from "lucide-react-native";
+import {
+  currencySymbol,
+  formatCompactNumber,
+  type AccountWithBalance,
+} from "@asharibook/shared";
+import { Check, CreditCard } from "lucide-react-native";
 
 import { AppIcon } from "@/components/ui/app-icon";
 import { Money } from "@/components/ui/money";
@@ -27,7 +31,8 @@ export function AccountCard({
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`${account.name}, ${account.currency}`}
+      accessibilityLabel={`${account.name}, ${account.currency}${selected ? ", selected" : ""}`}
+      accessibilityState={{ selected }}
       onPress={onPress}
       onLongPress={onLongPress}
       delayLongPress={350}
@@ -56,7 +61,13 @@ export function AccountCard({
                 </Text>
               </View>
             </View>
-            <CreditCard color="rgba(255,255,255,0.6)" size={18} />
+            {selected ? (
+              <View style={styles.darkSelectedBadge}>
+                <Check color={colors.white} size={13} strokeWidth={3} />
+              </View>
+            ) : (
+              <CreditCard color="rgba(255,255,255,0.6)" size={18} />
+            )}
           </View>
           <View>
             <Text style={styles.cardLabel}>
@@ -65,8 +76,10 @@ export function AccountCard({
             <Money
               value={account.balance > 0 ? account.balance : debt}
               currency={account.currency}
-              size={22}
+              size={20}
               color={colors.white}
+              display="symbol"
+              compact
             />
           </View>
           <View style={styles.cardBottom}>
@@ -87,8 +100,8 @@ export function AccountCard({
             <View style={styles.cardRow}>
               <Text style={styles.cardSmall}>•••• {account.lastFour ?? "••••"}</Text>
               {account.creditLimit ? (
-                <Text style={styles.cardSmall}>
-                  {formatLimit(account.creditLimit)} {account.currency} limit
+                <Text style={styles.cardSmall} numberOfLines={1}>
+                  {formatLimit(account.creditLimit, account.currency)} limit
                 </Text>
               ) : null}
             </View>
@@ -100,9 +113,9 @@ export function AccountCard({
             <View style={[styles.lightIcon, { backgroundColor: `${account.color}16` }]}>
               <AppIcon name={account.icon} color={account.color} size={18} />
             </View>
-            <View style={styles.lightBadge}>
-              <Text style={styles.lightBadgeText}>
-                {account.type === "cash" ? "Cash" : "Bank"}
+            <View style={[styles.lightBadge, selected && styles.lightBadgeSelected]}>
+              <Text style={[styles.lightBadgeText, selected && styles.lightBadgeTextSelected]}>
+                {selected ? "Selected" : account.type === "cash" ? "Cash" : "Bank"}
               </Text>
             </View>
           </View>
@@ -121,19 +134,20 @@ export function AccountCard({
             <Money
               value={account.balance}
               currency={account.currency}
-              size={21}
+              size={19}
               color={account.balance < 0 ? colors.danger : colors.ink}
+              display="symbol"
+              compact
             />
           </View>
-          {selected ? <Text style={styles.selectedLabel}>Selected</Text> : null}
         </>
       )}
     </Pressable>
   );
 }
 
-function formatLimit(value: number) {
-  return new Intl.NumberFormat("en-AE").format(value);
+function formatLimit(value: number, currency: string) {
+  return `${currencySymbol(currency)} ${formatCompactNumber(value, currency)}`;
 }
 
 const styles = StyleSheet.create({
@@ -196,12 +210,22 @@ const styles = StyleSheet.create({
   },
   lightIcon: { width: 38, height: 38, borderRadius: 12, alignItems: "center", justifyContent: "center" },
   lightBadge: { borderRadius: 7, backgroundColor: colors.canvas, paddingHorizontal: 7, paddingVertical: 4 },
+  lightBadgeSelected: { backgroundColor: colors.brandSoft },
   lightBadgeText: {
     fontFamily: font.semibold,
     fontSize: 9,
     letterSpacing: 0.7,
     color: colors.subtle,
     textTransform: "uppercase",
+  },
+  lightBadgeTextSelected: { color: colors.brand },
+  darkSelectedBadge: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: "rgba(255,255,255,0.18)",
+    alignItems: "center",
+    justifyContent: "center",
   },
   lightName: { fontFamily: font.semibold, fontSize: 13, color: colors.ink },
   lightMeta: { marginTop: 2, fontFamily: font.regular, fontSize: 10, color: colors.subtle },
@@ -212,13 +236,5 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     color: colors.subtle,
     marginBottom: 2,
-  },
-  selectedLabel: {
-    position: "absolute",
-    right: 14,
-    bottom: 14,
-    fontFamily: font.semibold,
-    fontSize: 9,
-    color: colors.brand,
   },
 });
