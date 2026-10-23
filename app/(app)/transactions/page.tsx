@@ -58,6 +58,13 @@ export default function TransactionsPage() {
     () => new Map(categories.map((category) => [category.id, category])),
     [categories],
   );
+  // A category can disappear while this page keeps its filter state. Fall back
+  // to "all" instead of showing an empty ledger for a deleted category.
+  const effectiveCategoryFilter =
+    categoryFilter !== "all" &&
+    categories.some((category) => category.id === categoryFilter)
+      ? categoryFilter
+      : "all";
   const monthTransactions = useMemo(
     () =>
       selectedAccount
@@ -80,7 +87,10 @@ export default function TransactionsPage() {
     const needle = query.trim().toLowerCase();
     return monthTransactions.filter((transaction) => {
       if (typeFilter !== "all" && transaction.type !== typeFilter) return false;
-      if (categoryFilter !== "all" && transaction.categoryId !== categoryFilter)
+      if (
+        effectiveCategoryFilter !== "all" &&
+        transaction.categoryId !== effectiveCategoryFilter
+      )
         return false;
       if (!needle) return true;
       const category = transaction.categoryId
@@ -104,12 +114,13 @@ export default function TransactionsPage() {
     monthTransactions,
     query,
     typeFilter,
-    categoryFilter,
+    effectiveCategoryFilter,
     accountMap,
     categoryMap,
   ]);
 
-  const activeFilters = typeFilter !== "all" || categoryFilter !== "all";
+  const activeFilters =
+    typeFilter !== "all" || effectiveCategoryFilter !== "all";
 
   if (!ready) return null;
 
@@ -251,7 +262,7 @@ export default function TransactionsPage() {
               <option value="transfer">Transfers</option>
             </Select>
             <Select
-              value={categoryFilter}
+              value={effectiveCategoryFilter}
               onChange={(event) => setCategoryFilter(event.target.value)}
               aria-label="Filter by category"
             >

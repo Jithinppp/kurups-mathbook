@@ -68,6 +68,14 @@ export default function TransactionsScreen() {
   const [categoryOpen, setCategoryOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
+  // Deleted categories can leave a stale filter behind in this mounted tab.
+  // Treat it as "all" rather than emptying the ledger.
+  const activeCategoryId = categories.some(
+    (category) => category.id === categoryId,
+  )
+    ? categoryId
+    : "";
+
   const monthTransactions = useMemo(
     () =>
       selectedAccount
@@ -82,13 +90,16 @@ export default function TransactionsScreen() {
   const closing = selectedAccount
     ? accountBalanceAt(selectedAccount, transactions, month)
     : 0;
-  const categoryName = categories.find((category) => category.id === categoryId)?.name;
+  const categoryName = categories.find(
+    (category) => category.id === activeCategoryId,
+  )?.name;
 
   const filtered = useMemo(() => {
     const search = query.trim().toLowerCase();
     return monthTransactions.filter((transaction) => {
       if (typeFilter !== "all" && transaction.type !== typeFilter) return false;
-      if (categoryId && transaction.categoryId !== categoryId) return false;
+      if (activeCategoryId && transaction.categoryId !== activeCategoryId)
+        return false;
       if (!search) return true;
       const category = categories.find((item) => item.id === transaction.categoryId);
       return (
@@ -97,7 +108,7 @@ export default function TransactionsScreen() {
         (category?.name ?? "").toLowerCase().includes(search)
       );
     });
-  }, [monthTransactions, typeFilter, categoryId, query, categories]);
+  }, [monthTransactions, typeFilter, activeCategoryId, query, categories]);
 
   function openActions(id: string, title: string) {
     Alert.alert(title, "What would you like to do?", [
@@ -226,16 +237,28 @@ export default function TransactionsScreen() {
             })}
             <Pressable
               onPress={() => setCategoryOpen(true)}
-              style={[styles.chip, styles.categoryChip, categoryId && styles.chipActive]}
+              style={[
+                styles.chip,
+                styles.categoryChip,
+                activeCategoryId && styles.chipActive,
+              ]}
             >
               <SlidersHorizontal
-                color={categoryId ? colors.brand : colors.muted}
+                color={activeCategoryId ? colors.brand : colors.muted}
                 size={12}
               />
-              <Text style={[styles.chipText, categoryId && styles.chipTextActive]}>
+              <Text
+                style={[
+                  styles.chipText,
+                  activeCategoryId && styles.chipTextActive,
+                ]}
+              >
                 {categoryName ?? "All categories"}
               </Text>
-              <ChevronDown color={categoryId ? colors.brand : colors.subtle} size={12} />
+              <ChevronDown
+                color={activeCategoryId ? colors.brand : colors.subtle}
+                size={12}
+              />
             </Pressable>
           </ScrollView>
 
@@ -321,14 +344,22 @@ export default function TransactionsScreen() {
               setCategoryId("");
               setCategoryOpen(false);
             }}
-            style={[styles.categoryOption, !categoryId && styles.categoryOptionActive]}
+            style={[
+              styles.categoryOption,
+              !activeCategoryId && styles.categoryOptionActive,
+            ]}
           >
-            <Text style={[styles.categoryOptionText, !categoryId && styles.categoryOptionTextActive]}>
+            <Text
+              style={[
+                styles.categoryOptionText,
+                !activeCategoryId && styles.categoryOptionTextActive,
+              ]}
+            >
               All categories
             </Text>
           </Pressable>
           {categories.map((category) => {
-            const active = categoryId === category.id;
+            const active = activeCategoryId === category.id;
             return (
               <Pressable
                 key={category.id}

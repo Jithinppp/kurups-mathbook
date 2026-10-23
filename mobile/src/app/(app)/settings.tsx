@@ -14,12 +14,14 @@ import {
   Check,
   Database,
   LogOut,
+  Pencil,
   Plus,
   RefreshCcw,
   ShieldCheck,
+  Trash2,
   User,
 } from "lucide-react-native";
-import { initials, type CategoryKind } from "@asharibook/shared";
+import { initials, type Category, type CategoryKind } from "@asharibook/shared";
 
 import { useAuth } from "@/contexts/auth";
 import { useData } from "@/contexts/data";
@@ -82,12 +84,15 @@ export default function SettingsScreen() {
     updateProfile,
     resetDemo,
     addCategory,
+    updateCategory,
+    deleteCategory,
     refresh,
   } = useData();
   const { showToast } = useToast();
   const [name, setName] = useState(profile.fullName);
   const [savingName, setSavingName] = useState(false);
   const [categoryOpen, setCategoryOpen] = useState(false);
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [categoryName, setCategoryName] = useState("");
   const [categoryKind, setCategoryKind] = useState<CategoryKind>("expense");
   const [categoryIcon, setCategoryIcon] = useState(CATEGORY_ICONS[0]);
@@ -114,33 +119,141 @@ export default function SettingsScreen() {
     }
   }
 
+  function resetCategoryForm() {
+    setCategoryName("");
+    setCategoryKind("expense");
+    setCategoryIcon(CATEGORY_ICONS[0]);
+    setCategoryColor(CATEGORY_COLORS[0]);
+    setCategoryError(null);
+  }
+
+  function openNewCategory() {
+    setEditingCategory(null);
+    resetCategoryForm();
+    setCategoryOpen(true);
+  }
+
+  function openEditCategory(category: Category) {
+    setEditingCategory(category);
+    setCategoryName(category.name);
+    setCategoryKind(category.kind);
+    setCategoryIcon(category.icon);
+    setCategoryColor(category.color);
+    setCategoryError(null);
+    setCategoryOpen(true);
+  }
+
   async function saveCategory() {
     setCategoryError(null);
-    if (!categoryName.trim()) {
+    const trimmedName = categoryName.trim();
+    if (!trimmedName) {
       setCategoryError("Give the category a name.");
       return;
     }
+
+    const duplicate = categories.some(
+      (category) =>
+        category.id !== editingCategory?.id &&
+        category.kind === categoryKind &&
+        category.name.trim().toLowerCase() === trimmedName.toLowerCase(),
+    );
+    if (duplicate) {
+      setCategoryError("A category with this name already exists for this type.");
+      return;
+    }
+
+    if (editingCategory && editingCategory.kind !== categoryKind) {
+      const inUse =
+        transactions.some((transaction) => transaction.categoryId === editingCategory.id) ||
+        budgets.some((budget) => budget.categoryId === editingCategory.id);
+      if (inUse) {
+        setCategoryError(
+          "This category is already used. Move or delete its transactions and budgets before changing its type.",
+        );
+        return;
+      }
+    }
+
     setSavingCategory(true);
     try {
-      await addCategory({
-        name: categoryName.trim(),
+      const input = {
+        name: trimmedName,
         kind: categoryKind,
         icon: categoryIcon,
         color: categoryColor,
-      });
-      showToast("Category added");
+      };
+      if (editingCategory) {
+        await updateCategory(editingCategory.id, input);
+        showToast("Category updated");
+      } else {
+        await addCategory(input);
+        showToast("Category added");
+      }
       setCategoryOpen(false);
-      setCategoryName("");
-      setCategoryKind("expense");
-      setCategoryIcon(CATEGORY_ICONS[0]);
-      setCategoryColor(CATEGORY_COLORS[0]);
+      setEditingCategory(null);
+      resetCategoryForm();
     } catch (caught) {
       setCategoryError(
-        caught instanceof Error ? caught.message : "Could not add category.",
+        caught instanceof Error
+          ? caught.message
+          : editingCategory
+            ? "Could not update category."
+            : "Could not add category.",
       );
     } finally {
       setSavingCategory(false);
     }
+  }
+
+  async function removeCategory(category: Category) {
+    try {
+      await deleteCategory(category.id);
+      showToast(`${category.name} deleted`);
+      if (editingCategory?.id === category.id) {
+        setCategoryOpen(false);
+        setEditingCategory(null);
+        resetCategoryForm();
+      }
+    } catch (caught) {
+      showToast(
+        caught instanceof Error ? caught.message : "Could not delete category.",
+        "error",
+      );
+    }
+  }
+
+  function confirmDeleteCategory(category: Category) {
+    const transactionCount = transactions.filter(
+      (transaction) => transaction.categoryId === category.id,
+    ).length;
+    const budgetCount = budgets.filter(
+      (budget) => budget.categoryId === category.id,
+    ).length;
+    const consequences = [
+      transactionCount
+        ? `${transactionCount} transaction${transactionCount === 1 ? "" : "s"} will stay but become uncategorized.`
+        : "",
+      budgetCount
+        ? `${budgetCount} budget plan${budgetCount === 1 ? "" : "s"} will be removed.`
+        : "",
+    ]
+      .filter(Boolean)
+      .join(" ");
+
+    Alert.alert(
+      `Delete ${category.name}?`,
+      consequences
+        ? `${consequences} This cannot be undone.`
+        : "This category is not used by any transactions or budgets. This cannot be undone.",
+      [
+        { text: "Keep category", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: () => void removeCategory(category),
+        },
+      ],
+    );
   }
 
   function confirmReset() {
@@ -266,28 +379,69 @@ export default function SettingsScreen() {
               size="sm"
               variant="secondary"
               icon={<Plus color={colors.ink} size={14} />}
-              onPress={() => setCategoryOpen(true)}
+              onPress={openNewCategory}
             />
           </View>
-          <View style={styles.categoryGrid}>
-            {categories.map((category) => (
-              <View key={category.id} style={styles.categoryChip}>
-                <View
-                  style={[
-                    styles.categoryIcon,
-                    { backgroundColor: `${category.color}16` },
-                  ]}
-                >
-                  <AppIcon name={category.icon} color={category.color} size={15} />
-                </View>
-                <View style={{ flex: 1, minWidth: 0 }}>
-                  <Text style={styles.categoryName} numberOfLines={1}>
-                    {category.name}
-                  </Text>
-                  <Text style={styles.categoryKind}>{category.kind}</Text>
-                </View>
-              </View>
-            ))}
+          <View style={styles.categoryList}>
+            {categories.length ? (
+              (["expense", "income"] as const).map((kind) => {
+                const items = categories.filter((category) => category.kind === kind);
+                if (!items.length) return null;
+                return (
+                  <View key={kind} style={styles.categoryGroup}>
+                    <Text style={styles.categoryGroupLabel}>
+                      {kind} categories
+                    </Text>
+                    {items.map((category) => (
+                      <View key={category.id} style={styles.categoryRow}>
+                        <Pressable
+                          accessibilityRole="button"
+                          accessibilityLabel={`Edit ${category.name}`}
+                          onPress={() => openEditCategory(category)}
+                          style={styles.categoryMain}
+                        >
+                          <View
+                            style={[
+                              styles.categoryIcon,
+                              { backgroundColor: `${category.color}16` },
+                            ]}
+                          >
+                            <AppIcon
+                              name={category.icon}
+                              color={category.color}
+                              size={15}
+                            />
+                          </View>
+                          <View style={styles.categoryCopy}>
+                            <Text style={styles.categoryName} numberOfLines={1}>
+                              {category.name}
+                            </Text>
+                          </View>
+                        </Pressable>
+                        <Pressable
+                          accessibilityRole="button"
+                          accessibilityLabel={`Edit ${category.name}`}
+                          onPress={() => openEditCategory(category)}
+                          style={styles.categoryAction}
+                        >
+                          <Pencil color={colors.muted} size={14} />
+                        </Pressable>
+                        <Pressable
+                          accessibilityRole="button"
+                          accessibilityLabel={`Delete ${category.name}`}
+                          onPress={() => confirmDeleteCategory(category)}
+                          style={[styles.categoryAction, styles.categoryDeleteAction]}
+                        >
+                          <Trash2 color={colors.danger} size={14} />
+                        </Pressable>
+                      </View>
+                    ))}
+                  </View>
+                );
+              })
+            ) : (
+              <Text style={styles.emptyCategories}>No categories yet.</Text>
+            )}
           </View>
         </Card>
 
@@ -372,8 +526,12 @@ export default function SettingsScreen() {
       <Sheet
         visible={categoryOpen}
         onClose={() => setCategoryOpen(false)}
-        title="New category"
-        description="Use it for expenses or income. It will be available on every account."
+        title={editingCategory ? "Edit category" : "New category"}
+        description={
+          editingCategory
+            ? "Update its name, type, icon or colour. Changes apply everywhere."
+            : "Use it for expenses or income. It will be available on every account."
+        }
       >
         <View style={styles.sheetBody}>
           {categoryError ? (
@@ -435,7 +593,11 @@ export default function SettingsScreen() {
               ))}
             </View>
           </Field>
-          <Button label="Add category" onPress={saveCategory} loading={savingCategory} />
+          <Button
+            label={editingCategory ? "Save changes" : "Add category"}
+            onPress={saveCategory}
+            loading={savingCategory}
+          />
         </View>
       </Sheet>
     </SafeAreaView>
@@ -528,17 +690,33 @@ const styles = StyleSheet.create({
     lineHeight: 15,
     color: colors.subtle,
   },
-  categoryGrid: { flexDirection: "row", flexWrap: "wrap", gap: 7 },
-  categoryChip: {
-    width: "48.8%",
+  categoryList: { gap: 14 },
+  categoryGroup: { gap: 6 },
+  categoryGroupLabel: {
+    fontFamily: font.semibold,
+    fontSize: 9,
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
+    color: colors.subtle,
+  },
+  categoryRow: {
+    width: "100%",
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: 6,
     borderRadius: radius.md,
     borderWidth: 1,
     borderColor: colors.lineSoft,
     padding: 8,
   },
+  categoryMain: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  categoryCopy: { flex: 1, minWidth: 0 },
   categoryIcon: {
     width: 30,
     height: 30,
@@ -546,13 +724,20 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  categoryName: { fontFamily: font.medium, fontSize: 10, color: colors.ink },
-  categoryKind: {
-    marginTop: 1,
+  categoryName: { fontFamily: font.medium, fontSize: 12, color: colors.ink },
+  categoryAction: {
+    width: 32,
+    height: 32,
+    borderRadius: 9,
+    backgroundColor: colors.canvas,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  categoryDeleteAction: { backgroundColor: colors.dangerSoft },
+  emptyCategories: {
     fontFamily: font.regular,
-    fontSize: 8,
+    fontSize: 10,
     color: colors.subtle,
-    textTransform: "capitalize",
   },
   notice: {
     borderRadius: radius.md,

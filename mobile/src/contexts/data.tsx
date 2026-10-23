@@ -85,6 +85,8 @@ interface DataContextValue extends DataState {
   setBudgets: (month: string, inputs: BudgetInput[]) => Promise<void>;
   deleteBudget: (id: string) => Promise<void>;
   addCategory: (input: CategoryInput) => Promise<void>;
+  updateCategory: (id: string, input: CategoryInput) => Promise<void>;
+  deleteCategory: (id: string) => Promise<void>;
   updateProfile: (fullName: string) => Promise<void>;
   resetDemo: () => Promise<void>;
 }
@@ -750,6 +752,98 @@ export function DataProvider({ children }: { children: ReactNode }) {
     [user, requireSupabase],
   );
 
+  const updateCategory = useCallback(
+    async (id: string, input: CategoryInput) => {
+      const name = input.name.trim();
+
+      if (user?.isDemo) {
+        setState((current) => {
+          const next = {
+            ...current,
+            categories: current.categories.map((category) =>
+              category.id === id
+                ? {
+                    ...category,
+                    name,
+                    kind: input.kind,
+                    icon: input.icon,
+                    color: input.color,
+                  }
+                : category,
+            ),
+          };
+          void persistDemo(next);
+          return next;
+        });
+        return;
+      }
+
+      const { supabase: client, user: currentUser } = requireSupabase();
+      const { data, error: updateError } = await client
+        .from("categories")
+        .update({
+          name,
+          kind: input.kind,
+          icon: input.icon,
+          color: input.color,
+        })
+        .eq("id", id)
+        .eq("user_id", currentUser.id)
+        .select("*")
+        .single();
+      if (updateError) throw new Error(updateError.message);
+      const category = mapCategory(data as CategoryRow);
+      setState((current) => ({
+        ...current,
+        categories: current.categories.map((item) =>
+          item.id === id ? category : item,
+        ),
+      }));
+    },
+    [user, requireSupabase],
+  );
+
+  const deleteCategory = useCallback(
+    async (id: string) => {
+      if (user?.isDemo) {
+        setState((current) => {
+          const next = {
+            ...current,
+            categories: current.categories.filter((category) => category.id !== id),
+            transactions: current.transactions.map((transaction) =>
+              transaction.categoryId === id
+                ? { ...transaction, categoryId: null }
+                : transaction,
+            ),
+            budgets: current.budgets.filter((budget) => budget.categoryId !== id),
+          };
+          void persistDemo(next);
+          return next;
+        });
+        return;
+      }
+
+      const { supabase: client, user: currentUser } = requireSupabase();
+      const { error: deleteError } = await client
+        .from("categories")
+        .delete()
+        .eq("id", id)
+        .eq("user_id", currentUser.id);
+      if (deleteError) throw new Error(deleteError.message);
+      setState((current) => ({
+        ...current,
+        categories: current.categories.filter((category) => category.id !== id),
+        transactions: current.transactions.map((transaction) =>
+          transaction.categoryId === id
+            ? { ...transaction, categoryId: null }
+            : transaction,
+        ),
+        budgets: current.budgets.filter((budget) => budget.categoryId !== id),
+      }));
+    },
+    [user, requireSupabase],
+  );
+
   const updateProfile = useCallback(
     async (fullName: string) => {
       if (user?.isDemo) {
@@ -808,6 +902,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setBudgets,
       deleteBudget,
       addCategory,
+      updateCategory,
+      deleteCategory,
       updateProfile,
       resetDemo,
     }),
@@ -827,6 +923,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setBudgets,
       deleteBudget,
       addCategory,
+      updateCategory,
+      deleteCategory,
       updateProfile,
       resetDemo,
     ],

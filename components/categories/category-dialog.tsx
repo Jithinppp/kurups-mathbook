@@ -9,13 +9,14 @@ import { Dialog } from "@/components/ui/dialog";
 import { Field, Input, SegmentedControl } from "@/components/ui/input";
 import { ACCOUNT_COLORS } from "@/lib/constants";
 import { useData } from "@/lib/data-context";
-import type { CategoryKind } from "@/lib/types";
+import type { Category, CategoryKind } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const ICONS = [
   "shopping-cart",
   "utensils",
   "car",
+  "shopping-bag",
   "home",
   "zap",
   "users",
@@ -24,6 +25,7 @@ const ICONS = [
   "clapperboard",
   "plane",
   "repeat",
+  "undo-2",
   "file-text",
   "briefcase",
   "wallet",
@@ -38,43 +40,85 @@ const ICONS = [
 export function CategoryDialog({
   open,
   onOpenChange,
+  editing = null,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  editing?: Category | null;
 }) {
   if (!open) return null;
-  return <CategoryDialogContent onOpenChange={onOpenChange} />;
+  return (
+    <CategoryDialogContent
+      key={editing?.id ?? "new"}
+      editing={editing}
+      onOpenChange={onOpenChange}
+    />
+  );
 }
 
 function CategoryDialogContent({
   onOpenChange,
+  editing,
 }: {
   onOpenChange: (open: boolean) => void;
+  editing: Category | null;
 }) {
-  const { addCategory } = useData();
-  const [name, setName] = useState("");
-  const [kind, setKind] = useState<CategoryKind>("expense");
-  const [icon, setIcon] = useState(ICONS[0]);
-  const [color, setColor] = useState<string>(ACCOUNT_COLORS[0]);
+  const { categories, transactions, budgets, addCategory, updateCategory } = useData();
+  const [name, setName] = useState(editing?.name ?? "");
+  const [kind, setKind] = useState<CategoryKind>(editing?.kind ?? "expense");
+  const [icon, setIcon] = useState(editing?.icon ?? ICONS[0]);
+  const [color, setColor] = useState<string>(editing?.color ?? ACCOUNT_COLORS[0]);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   async function handleSave() {
     setError(null);
-    if (!name.trim()) {
+    const trimmedName = name.trim();
+    if (!trimmedName) {
       setError("Give this category a name.");
       return;
     }
+
+    const duplicate = categories.some(
+      (category) =>
+        category.id !== editing?.id &&
+        category.kind === kind &&
+        category.name.trim().toLowerCase() === trimmedName.toLowerCase(),
+    );
+    if (duplicate) {
+      setError("A category with this name already exists for this type.");
+      return;
+    }
+
+    if (editing && editing.kind !== kind) {
+      const inUse =
+        transactions.some((transaction) => transaction.categoryId === editing.id) ||
+        budgets.some((budget) => budget.categoryId === editing.id);
+      if (inUse) {
+        setError(
+          "This category is already used. Move or delete its transactions and budgets before changing its type.",
+        );
+        return;
+      }
+    }
+
     setSaving(true);
     try {
-      await addCategory({ name: name.trim(), kind, icon, color });
-      toast.success("Category added");
+      if (editing) {
+        await updateCategory(editing.id, { name: trimmedName, kind, icon, color });
+        toast.success("Category updated");
+      } else {
+        await addCategory({ name: trimmedName, kind, icon, color });
+        toast.success("Category added");
+      }
       onOpenChange(false);
     } catch (saveError) {
       setError(
         saveError instanceof Error
           ? saveError.message
-          : "Could not add category.",
+          : editing
+            ? "Could not update category."
+            : "Could not add category.",
       );
     } finally {
       setSaving(false);
@@ -85,8 +129,12 @@ function CategoryDialogContent({
     <Dialog
       open
       onOpenChange={onOpenChange}
-      title="New category"
-      description="Create a category that fits the way you actually spend."
+      title={editing ? "Edit category" : "New category"}
+      description={
+        editing
+          ? "Update its name, type, icon or colour. Changes apply everywhere."
+          : "Create a category that fits the way you actually spend."
+      }
     >
       <div className="space-y-5">
         <Field label="Name">
@@ -163,7 +211,7 @@ function CategoryDialogContent({
             Cancel
           </Button>
           <Button type="button" onClick={handleSave} loading={saving}>
-            Add category
+            {editing ? "Save changes" : "Add category"}
           </Button>
         </div>
       </div>

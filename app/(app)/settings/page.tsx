@@ -6,9 +6,11 @@ import {
   Database,
   Layers,
   LogOut,
+  Pencil,
   Plus,
   RefreshCcw,
   ShieldCheck,
+  Trash2,
   UserRound,
 } from "lucide-react";
 import Link from "next/link";
@@ -20,19 +22,34 @@ import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog } from "@/components/ui/dialog";
 import { Field, Input } from "@/components/ui/input";
 import { useAuth } from "@/lib/auth-context";
 import { currencyLabel } from "@/lib/constants";
 import { useData } from "@/lib/data-context";
 import { currenciesForAccounts } from "@/lib/finance";
+import type { Category } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 export default function SettingsPage() {
   const { user, signOut, configured } = useAuth();
-  const { profile, accounts, categories, updateProfile, resetDemo } = useData();
+  const {
+    profile,
+    accounts,
+    categories,
+    transactions,
+    budgets,
+    updateProfile,
+    resetDemo,
+    deleteCategory,
+  } = useData();
   const [nameDraft, setNameDraft] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [categoryOpen, setCategoryOpen] = useState(false);
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+  const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(null);
+  const [deletingCategory, setDeletingCategory] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [confirmReset, setConfirmReset] = useState(false);
   const name = nameDraft ?? profile.fullName;
 
@@ -53,11 +70,66 @@ export default function SettingsPage() {
     }
   }
 
+  function openNewCategory() {
+    setEditingCategory(null);
+    setCategoryOpen(true);
+  }
+
+  function openEditCategory(category: Category) {
+    setEditingCategory(category);
+    setCategoryOpen(true);
+  }
+
+  function handleCategoryOpenChange(open: boolean) {
+    setCategoryOpen(open);
+    if (!open) setEditingCategory(null);
+  }
+
+  function requestDeleteCategory(category: Category) {
+    setDeleteError(null);
+    setCategoryToDelete(category);
+  }
+
+  function handleDeleteOpenChange(open: boolean) {
+    if (!open && deletingCategory) return;
+    if (!open) {
+      setCategoryToDelete(null);
+      setDeleteError(null);
+    }
+  }
+
+  async function handleDeleteCategory() {
+    if (!categoryToDelete) return;
+    setDeleteError(null);
+    setDeletingCategory(true);
+    try {
+      await deleteCategory(categoryToDelete.id);
+      toast.success(`${categoryToDelete.name} deleted`);
+      setCategoryToDelete(null);
+    } catch (deleteFailure) {
+      setDeleteError(
+        deleteFailure instanceof Error
+          ? deleteFailure.message
+          : "Could not delete category.",
+      );
+    } finally {
+      setDeletingCategory(false);
+    }
+  }
+
   const expenseCategories = categories.filter(
     (category) => category.kind === "expense",
   );
   const incomeCategories = categories.filter((category) => category.kind === "income");
   const currencies = currenciesForAccounts(accounts);
+  const deleteTransactionCount = categoryToDelete
+    ? transactions.filter(
+        (transaction) => transaction.categoryId === categoryToDelete.id,
+      ).length
+    : 0;
+  const deleteBudgetCount = categoryToDelete
+    ? budgets.filter((budget) => budget.categoryId === categoryToDelete.id).length
+    : 0;
 
   return (
     <div className="space-y-6">
@@ -174,14 +246,24 @@ export default function SettingsPage() {
               Used for budgets, reports and quick entry.
             </p>
           </div>
-          <Button size="sm" variant="secondary" onClick={() => setCategoryOpen(true)}>
+          <Button size="sm" variant="secondary" onClick={openNewCategory}>
             <Plus className="size-3.5" />
             New category
           </Button>
         </CardHeader>
         <CardContent className="space-y-5 pt-5">
-          <CategoryGroup title="Expense categories" categories={expenseCategories} />
-          <CategoryGroup title="Income categories" categories={incomeCategories} />
+          <CategoryGroup
+            title="Expense categories"
+            categories={expenseCategories}
+            onEdit={openEditCategory}
+            onDelete={requestDeleteCategory}
+          />
+          <CategoryGroup
+            title="Income categories"
+            categories={incomeCategories}
+            onEdit={openEditCategory}
+            onDelete={requestDeleteCategory}
+          />
         </CardContent>
       </Card>
 
@@ -316,7 +398,67 @@ export default function SettingsPage() {
         </p>
       </div>
 
-      <CategoryDialog open={categoryOpen} onOpenChange={setCategoryOpen} />
+      <CategoryDialog
+        open={categoryOpen}
+        onOpenChange={handleCategoryOpenChange}
+        editing={editingCategory}
+      />
+
+      <Dialog
+        open={Boolean(categoryToDelete)}
+        onOpenChange={handleDeleteOpenChange}
+        title={categoryToDelete ? `Delete ${categoryToDelete.name}?` : "Delete category?"}
+        description="This removes the category from your workspace. This cannot be undone."
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant="secondary"
+              onClick={() => handleDeleteOpenChange(false)}
+              disabled={deletingCategory}
+            >
+              Keep category
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="danger"
+              onClick={() => void handleDeleteCategory()}
+              loading={deletingCategory}
+            >
+              Delete category
+            </Button>
+          </div>
+        }
+      >
+        <div className="space-y-3">
+          <div className="rounded-xl border border-line-soft bg-canvas px-3.5 py-3 text-xs leading-relaxed text-muted">
+            {deleteTransactionCount > 0 ? (
+              <p>
+                {deleteTransactionCount} transaction
+                {deleteTransactionCount === 1 ? "" : "s"} will stay in the ledger
+                and become uncategorized.
+              </p>
+            ) : null}
+            {deleteBudgetCount > 0 ? (
+              <p className={deleteTransactionCount > 0 ? "mt-1.5" : undefined}>
+                {deleteBudgetCount} budget plan
+                {deleteBudgetCount === 1 ? "" : "s"} using this category will be
+                removed.
+              </p>
+            ) : null}
+            {deleteTransactionCount === 0 && deleteBudgetCount === 0 ? (
+              <p>No transactions or budgets use this category.</p>
+            ) : null}
+          </div>
+          {deleteError ? (
+            <p className="rounded-xl bg-danger-soft px-3 py-2.5 text-xs font-medium text-danger">
+              {deleteError}
+            </p>
+          ) : null}
+        </div>
+      </Dialog>
     </div>
   );
 }
@@ -324,9 +466,13 @@ export default function SettingsPage() {
 function CategoryGroup({
   title,
   categories,
+  onEdit,
+  onDelete,
 }: {
   title: string;
-  categories: { id: string; name: string; icon: string; color: string }[];
+  categories: Category[];
+  onEdit: (category: Category) => void;
+  onDelete: (category: Category) => void;
 }) {
   return (
     <div>
@@ -337,10 +483,10 @@ function CategoryGroup({
         {categories.map((category) => (
           <div
             key={category.id}
-            className="flex items-center gap-2.5 rounded-xl border border-line-soft px-3 py-2"
+            className="flex items-center gap-2 rounded-xl border border-line-soft px-2.5 py-2"
           >
             <span
-              className="flex size-7 items-center justify-center rounded-lg"
+              className="flex size-7 shrink-0 items-center justify-center rounded-lg"
               style={{
                 backgroundColor: `${category.color}14`,
                 color: category.color,
@@ -348,9 +494,25 @@ function CategoryGroup({
             >
               <AppIcon name={category.icon} className="size-3.5" />
             </span>
-            <span className="truncate text-xs font-medium text-ink">
+            <span className="min-w-0 flex-1 truncate text-xs font-medium text-ink">
               {category.name}
             </span>
+            <button
+              type="button"
+              onClick={() => onEdit(category)}
+              className="flex size-7 shrink-0 items-center justify-center rounded-lg text-subtle transition hover:bg-black/[0.05] hover:text-ink focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/15"
+              aria-label={`Edit ${category.name}`}
+            >
+              <Pencil className="size-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => onDelete(category)}
+              className="flex size-7 shrink-0 items-center justify-center rounded-lg text-subtle transition hover:bg-danger-soft hover:text-danger focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-danger/15"
+              aria-label={`Delete ${category.name}`}
+            >
+              <Trash2 className="size-3.5" />
+            </button>
           </div>
         ))}
         {categories.length === 0 ? (
