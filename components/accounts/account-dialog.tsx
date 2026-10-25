@@ -4,9 +4,10 @@ import { Banknote, CreditCard, Landmark, Trash2 } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { ColorPicker } from "@/components/ui/color-picker";
 import { Dialog } from "@/components/ui/dialog";
 import { Field, Input, Select } from "@/components/ui/input";
-import { ACCOUNT_COLORS, CURRENCIES } from "@/lib/constants";
+import { CURRENCIES, DEFAULT_COLOR } from "@/lib/constants";
 import { useData } from "@/lib/data-context";
 import type { Account, AccountType } from "@/lib/types";
 import { cn, roundMoney } from "@/lib/utils";
@@ -72,7 +73,7 @@ function AccountDialogContent({
     editing?.creditLimit ? String(editing.creditLimit) : "",
   );
   const [lastFour, setLastFour] = useState(editing?.lastFour ?? "");
-  const [color, setColor] = useState(editing?.color ?? ACCOUNT_COLORS[0]);
+  const [color, setColor] = useState(editing?.color ?? DEFAULT_COLOR);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [confirmArchive, setConfirmArchive] = useState(false);
@@ -288,23 +289,7 @@ function AccountDialogContent({
         ) : null}
 
         <Field label={type === "credit_card" ? "Card colour" : "Account colour"}>
-          <div className="flex flex-wrap gap-2">
-            {ACCOUNT_COLORS.map((swatch) => (
-              <button
-                key={swatch}
-                type="button"
-                onClick={() => setColor(swatch)}
-                className={cn(
-                  "size-8 rounded-full border-2 transition",
-                  color === swatch
-                    ? "border-ink ring-2 ring-ink/10"
-                    : "border-transparent hover:scale-105",
-                )}
-                style={{ backgroundColor: swatch }}
-                aria-label={`Use colour ${swatch}`}
-              />
-            ))}
-          </div>
+          <ColorPicker value={color} onChange={setColor} />
         </Field>
 
         {error ? (

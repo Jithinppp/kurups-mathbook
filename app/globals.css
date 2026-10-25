@@ -79,6 +79,70 @@ a {
   border-radius: 999px;
 }
 
+.color-hue-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  display: block;
+  height: 14px;
+  border-radius: 999px;
+  background: linear-gradient(
+    to right,
+    #ff0000 0%,
+    #ffff00 16.66%,
+    #00ff00 33.33%,
+    #00ffff 50%,
+    #0000ff 66.66%,
+    #ff00ff 83.33%,
+    #ff0000 100%
+  );
+  cursor: pointer;
+  outline: none;
+}
+
+.color-hue-slider::-webkit-slider-runnable-track {
+  height: 14px;
+  border-radius: 999px;
+  background: transparent;
+}
+
+.color-hue-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  margin-top: -2px;
+  border-radius: 999px;
+  border: 3px solid #ffffff;
+  background: #ffffff;
+  box-shadow:
+    0 1px 5px rgba(16, 17, 20, 0.28),
+    0 0 0 1px rgba(16, 17, 20, 0.12);
+  cursor: grab;
+}
+
+.color-hue-slider::-moz-range-track {
+  height: 14px;
+  border-radius: 999px;
+  background: transparent;
+}
+
+.color-hue-slider::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  border: 3px solid #ffffff;
+  background: #ffffff;
+  box-shadow:
+    0 1px 5px rgba(16, 17, 20, 0.28),
+    0 0 0 1px rgba(16, 17, 20, 0.12);
+  cursor: grab;
+}
+
+.color-hue-slider:focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 4px;
+}
+
 dialog.dialog-panel {
   border: 0;
   padding: 0;

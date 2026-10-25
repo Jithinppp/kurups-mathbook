@@ -3,8 +3,8 @@ import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { Banknote, Check, CreditCard, Landmark } from "lucide-react-native";
 import {
-  ACCOUNT_COLORS,
   CURRENCIES,
+  DEFAULT_COLOR,
   currencyLabel,
   roundMoney,
   type Account,
@@ -16,6 +16,7 @@ import { useAccountSelection } from "@/contexts/account-selection";
 import { useData } from "@/contexts/data";
 import { useToast } from "@/contexts/toast";
 import { Button } from "@/components/ui/button";
+import { ColorPicker } from "@/components/ui/color-picker";
 import { Field, Input } from "@/components/ui/input";
 import { FormShell } from "@/components/ui/form-shell";
 import { Segmented } from "@/components/ui/segmented";
@@ -56,7 +57,7 @@ export function AccountForm({ editing }: { editing?: Account | null }) {
     editing?.creditLimit ? String(editing.creditLimit) : "",
   );
   const [lastFour, setLastFour] = useState(editing?.lastFour ?? "");
-  const [color, setColor] = useState(editing?.color ?? ACCOUNT_COLORS[0]);
+  const [color, setColor] = useState(editing?.color ?? DEFAULT_COLOR);
   const [currencyOpen, setCurrencyOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -239,22 +240,7 @@ export function AccountForm({ editing }: { editing?: Account | null }) {
       ) : null}
 
       <Field label={isCard ? "Card colour" : "Account colour"}>
-        <View style={styles.colors}>
-          {ACCOUNT_COLORS.map((swatch) => (
-            <Pressable
-              key={swatch}
-              accessibilityLabel={`Use colour ${swatch}`}
-              onPress={() => setColor(swatch)}
-              style={[
-                styles.color,
-                { backgroundColor: swatch },
-                color === swatch && styles.colorActive,
-              ]}
-            >
-              {color === swatch ? <Check color={colors.white} size={13} /> : null}
-            </Pressable>
-          ))}
-        </View>
+        <ColorPicker value={color} onChange={setColor} />
       </Field>
 
       <Text style={styles.note}>
@@ -297,18 +283,6 @@ export function AccountForm({ editing }: { editing?: Account | null }) {
 }
 
 const styles = StyleSheet.create({
-  colors: { flexDirection: "row", flexWrap: "wrap", gap: 9 },
-  color: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  colorActive: {
-    borderWidth: 2,
-    borderColor: colors.ink,
-  },
   note: {
     fontFamily: font.regular,
     fontSize: 10,

@@ -11,7 +11,6 @@ import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
   ArrowLeft,
-  Check,
   Database,
   LogOut,
   Pencil,
@@ -21,7 +20,12 @@ import {
   Trash2,
   User,
 } from "lucide-react-native";
-import { initials, type Category, type CategoryKind } from "@asharibook/shared";
+import {
+  DEFAULT_COLOR,
+  initials,
+  type Category,
+  type CategoryKind,
+} from "@asharibook/shared";
 
 import { useAuth } from "@/contexts/auth";
 import { useData } from "@/contexts/data";
@@ -30,6 +34,7 @@ import { AppIcon } from "@/components/ui/app-icon";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { ColorPicker } from "@/components/ui/color-picker";
 import { Field, Input } from "@/components/ui/input";
 import { Logo } from "@/components/ui/logo";
 import { Segmented } from "@/components/ui/segmented";
@@ -61,17 +66,6 @@ const CATEGORY_ICONS = [
   "smartphone",
 ];
 
-const CATEGORY_COLORS = [
-  "#7132f5",
-  "#5b1ecf",
-  "#101114",
-  "#149e61",
-  "#0e7490",
-  "#b45309",
-  "#be123c",
-  "#686b82",
-];
-
 export default function SettingsScreen() {
   const router = useRouter();
   const { user, signOut, configured } = useAuth();
@@ -92,11 +86,12 @@ export default function SettingsScreen() {
   const [name, setName] = useState(profile.fullName);
   const [savingName, setSavingName] = useState(false);
   const [categoryOpen, setCategoryOpen] = useState(false);
+  const [categoryFormNonce, setCategoryFormNonce] = useState(0);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [categoryName, setCategoryName] = useState("");
   const [categoryKind, setCategoryKind] = useState<CategoryKind>("expense");
   const [categoryIcon, setCategoryIcon] = useState(CATEGORY_ICONS[0]);
-  const [categoryColor, setCategoryColor] = useState(CATEGORY_COLORS[0]);
+  const [categoryColor, setCategoryColor] = useState(DEFAULT_COLOR);
   const [categoryError, setCategoryError] = useState<string | null>(null);
   const [savingCategory, setSavingCategory] = useState(false);
 
@@ -123,18 +118,20 @@ export default function SettingsScreen() {
     setCategoryName("");
     setCategoryKind("expense");
     setCategoryIcon(CATEGORY_ICONS[0]);
-    setCategoryColor(CATEGORY_COLORS[0]);
+    setCategoryColor(DEFAULT_COLOR);
     setCategoryError(null);
   }
 
   function openNewCategory() {
     setEditingCategory(null);
+    setCategoryFormNonce((current) => current + 1);
     resetCategoryForm();
     setCategoryOpen(true);
   }
 
   function openEditCategory(category: Category) {
     setEditingCategory(category);
+    setCategoryFormNonce((current) => current + 1);
     setCategoryName(category.name);
     setCategoryKind(category.kind);
     setCategoryIcon(category.icon);
@@ -579,19 +576,11 @@ export default function SettingsScreen() {
             </View>
           </Field>
           <Field label="Colour">
-            <View style={styles.colorRow}>
-              {CATEGORY_COLORS.map((color) => (
-                <Pressable
-                  key={color}
-                  onPress={() => setCategoryColor(color)}
-                  style={[styles.color, { backgroundColor: color }]}
-                >
-                  {categoryColor === color ? (
-                    <Check color={colors.white} size={13} />
-                  ) : null}
-                </Pressable>
-              ))}
-            </View>
+            <ColorPicker
+              key={categoryFormNonce}
+              value={categoryColor}
+              onChange={setCategoryColor}
+            />
           </Field>
           <Button
             label={editingCategory ? "Save changes" : "Add category"}
@@ -785,14 +774,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   iconOptionActive: { borderColor: colors.brand, backgroundColor: colors.brandSoft },
-  colorRow: { flexDirection: "row", flexWrap: "wrap", gap: 9 },
-  color: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    alignItems: "center",
-    justifyContent: "center",
-  },
   categoryError: {
     borderRadius: radius.md,
     backgroundColor: colors.dangerSoft,

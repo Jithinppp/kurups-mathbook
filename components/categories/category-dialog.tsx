@@ -1,13 +1,13 @@
 "use client";
 
-import { Check } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { AppIcon } from "@/components/app-icon";
 import { Button } from "@/components/ui/button";
+import { ColorPicker } from "@/components/ui/color-picker";
 import { Dialog } from "@/components/ui/dialog";
 import { Field, Input, SegmentedControl } from "@/components/ui/input";
-import { ACCOUNT_COLORS } from "@/lib/constants";
+import { DEFAULT_COLOR } from "@/lib/constants";
 import { useData } from "@/lib/data-context";
 import type { Category, CategoryKind } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -67,7 +67,7 @@ function CategoryDialogContent({
   const [name, setName] = useState(editing?.name ?? "");
   const [kind, setKind] = useState<CategoryKind>(editing?.kind ?? "expense");
   const [icon, setIcon] = useState(editing?.icon ?? ICONS[0]);
-  const [color, setColor] = useState<string>(editing?.color ?? ACCOUNT_COLORS[0]);
+  const [color, setColor] = useState<string>(editing?.color ?? DEFAULT_COLOR);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -179,25 +179,7 @@ function CategoryDialogContent({
         </Field>
 
         <Field label="Colour">
-          <div className="flex flex-wrap gap-2">
-            {ACCOUNT_COLORS.map((swatch) => (
-              <button
-                key={swatch}
-                type="button"
-                onClick={() => setColor(swatch)}
-                className={cn(
-                  "flex size-8 items-center justify-center rounded-full border-2 transition",
-                  color === swatch
-                    ? "border-ink ring-2 ring-ink/10"
-                    : "border-transparent hover:scale-105",
-                )}
-                style={{ backgroundColor: swatch }}
-                aria-label={`Use colour ${swatch}`}
-              >
-                {color === swatch ? <Check className="size-3.5 text-white" /> : null}
-              </button>
-            ))}
-          </div>
+          <ColorPicker value={color} onChange={setColor} />
         </Field>
 
         {error ? (

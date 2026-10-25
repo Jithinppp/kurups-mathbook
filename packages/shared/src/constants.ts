@@ -128,15 +128,4 @@ export const SUGGESTED_BUDGETS: Record<string, Record<string, number>> = {
   },
 };
 
-export const ACCOUNT_COLORS = [
-  "#7132f5",
-  "#101114",
-  "#149e61",
-  "#5b1ecf",
-  "#0e7490",
-  "#b45309",
-  "#be123c",
-  "#686b82",
-];
-
-export const CARD_COLORS = ["#7132f5", "#101114", "#5b1ecf", "#149e61", "#0e7490"];
+export const DEFAULT_COLOR = "#7132f5";
