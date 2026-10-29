@@ -21,6 +21,7 @@ import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { useAccountSelection } from "@/lib/account-selection";
 import { currencyLabel } from "@/lib/constants";
 import { useData } from "@/lib/data-context";
 import {
@@ -35,6 +36,7 @@ import { cn } from "@/lib/utils";
 
 export default function AccountsPage() {
   const { accounts, transactions, restoreAccount } = useData();
+  const { selectedAccount } = useAccountSelection();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Account | null>(null);
   const [defaultType, setDefaultType] = useState<AccountType>("bank");
@@ -145,6 +147,7 @@ export default function AccountsPage() {
                 <AccountCard
                   key={account.id}
                   account={account}
+                  selected={account.id === selectedAccount?.id}
                   onClick={() => openEdit(account)}
                 />
               ))}
@@ -185,6 +188,7 @@ export default function AccountsPage() {
                 <AccountCard
                   key={account.id}
                   account={account}
+                  selected={account.id === selectedAccount?.id}
                   onClick={() => openEdit(account)}
                 />
               ))}
@@ -254,6 +258,8 @@ export default function AccountsPage() {
                       <Money
                         value={accountDisplayBalance(account, account.balance)}
                         currency={account.currency}
+                        display="symbol"
+                        compact
                       />
                     </p>
                   </div>
@@ -372,7 +378,12 @@ function CurrencyPositionCard({ position }: { position: CurrencyTotals }) {
         Net position
       </p>
       <p className="mt-1 text-[25px] font-semibold tracking-[-0.03em] text-ink">
-        <Money value={position.net} currency={position.currency} />
+        <Money
+          value={position.net}
+          currency={position.currency}
+          display="symbol"
+          compact
+        />
       </p>
 
       <div className="mt-4 grid grid-cols-2 gap-3 border-t border-line-soft pt-3">
@@ -382,7 +393,12 @@ function CurrencyPositionCard({ position }: { position: CurrencyTotals }) {
             Assets
           </p>
           <p className="mt-1 text-[13px] font-semibold text-ink">
-            <Money value={position.assets} currency={position.currency} />
+            <Money
+              value={position.assets}
+              currency={position.currency}
+              display="symbol"
+              compact
+            />
           </p>
         </div>
         <div>
@@ -396,17 +412,21 @@ function CurrencyPositionCard({ position }: { position: CurrencyTotals }) {
               position.owed > 0 ? "text-danger" : "text-ink",
             )}
           >
-            <Money value={position.owed} currency={position.currency} />
+            <Money
+              value={position.owed}
+              currency={position.currency}
+              display="symbol"
+              compact
+            />
           </p>
         </div>
       </div>
 
       <p className="mt-3 text-[10px] leading-relaxed text-subtle">
         {position.owed > 0
-          ? `${formatMoney(
-              position.availableCredit,
-              position.currency,
-            )} available · ${formatPercent(position.utilization)} of credit used`
+          ? `${formatMoney(position.availableCredit, position.currency, {
+              compact: true,
+            })} available · ${formatPercent(position.utilization)} of credit used`
           : "No card balance outstanding"}
       </p>
     </Card>

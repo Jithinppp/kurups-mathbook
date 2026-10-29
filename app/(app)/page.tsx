@@ -284,10 +284,13 @@ export default function DashboardPage() {
                 value={closingDisplay}
                 currency={selectedAccount.currency}
                 codeClassName="text-white/55"
+                display="symbol"
+                compact
+                compactFrom={1_000_000_000}
               />
             </p>
             <p className="mt-2 text-[10px] leading-relaxed text-white/55">
-              Opened at {formatMoney(openingDisplay, currency)} · closing
+              Opened at {formatMoney(openingDisplay, currency, { compact: true })} · closing
               balance carries into {nextMonthLabel}
             </p>
 
@@ -377,6 +380,7 @@ export default function DashboardPage() {
               ? `${formatPercent(budgetPct)} of ${formatMoney(
                   totalBudget,
                   currency,
+                  { compact: true },
                 )} used`
               : "No budgets set for this account this month"
           }
@@ -389,7 +393,7 @@ export default function DashboardPage() {
           currency={currency}
           hint={
             availableCredit !== null
-              ? `${formatMoney(availableCredit, currency)} available`
+              ? `${formatMoney(availableCredit, currency, { compact: true })} available`
               : `${monthLabel} close · carries into ${nextMonthLabel}`
           }
           icon={
@@ -465,11 +469,11 @@ export default function DashboardPage() {
             <div className="mt-5 grid grid-cols-3 gap-3 border-t border-line-soft pt-4">
               <MiniMetric
                 label="Avg. monthly spend"
-                value={formatMoney(averageSpend, currency)}
+                value={formatMoney(averageSpend, currency, { compact: true })}
               />
               <MiniMetric
                 label="This month"
-                value={formatMoney(summary.expenses, currency)}
+                value={formatMoney(summary.expenses, currency, { compact: true })}
               />
               <MiniMetric
                 label="vs. last month"
@@ -513,7 +517,12 @@ export default function DashboardPage() {
                         budgetLeft < 0 ? "text-danger" : "text-ink",
                       )}
                     >
-                      <Money value={Math.abs(budgetLeft)} currency={currency} />
+                      <Money
+                        value={Math.abs(budgetLeft)}
+                        currency={currency}
+                        display="symbol"
+                        compact
+                      />
                     </p>
                   </div>
                   <span
@@ -679,7 +688,7 @@ export default function DashboardPage() {
             </div>
             {projected !== null ? (
               <Badge variant="neutral">
-                {formatMoney(projected, currency)} projected
+                {formatMoney(projected, currency, { compact: true })} projected
               </Badge>
             ) : null}
           </CardHeader>
@@ -730,7 +739,13 @@ function HeroStat({
           positive === false ? "text-[#ffd4cc]" : "text-white",
         )}
       >
-        <Money value={value} currency={currency} codeClassName="text-white/55" />
+        <Money
+          value={value}
+          currency={currency}
+          codeClassName="text-white/55"
+          display="symbol"
+          compact
+        />
       </span>
     </div>
   );
@@ -772,7 +787,12 @@ function StatCard({
           tone === "danger" ? "text-danger" : "text-ink",
         )}
       >
-        <Money value={value} currency={currency} />
+        <Money
+          value={value}
+          currency={currency}
+          display="symbol"
+          compact
+        />
       </p>
       <p className="mt-1 text-[10px] leading-relaxed text-subtle sm:text-[11px]">{hint}</p>
     </Card>
@@ -829,7 +849,12 @@ function AccountMiniCard({
             isCard ? "text-ink" : account.balance < 0 ? "text-danger" : "text-ink",
           )}
         >
-          <Money value={display} currency={account.currency} />
+          <Money
+            value={display}
+            currency={account.currency}
+            display="symbol"
+            compact
+          />
         </p>
       </div>
     </button>

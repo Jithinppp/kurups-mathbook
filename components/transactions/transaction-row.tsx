@@ -133,7 +133,10 @@ export function TransactionRow({
               value={amount}
               currency={transaction.currency}
               showSign
-              codeClassName="hidden text-[0.72em] font-medium text-subtle sm:inline"
+              codeClassName="text-[0.72em] font-medium text-subtle"
+              display="symbol"
+              compact
+              compactFrom={1_000_000}
             />
           </span>
         </button>
@@ -209,6 +212,9 @@ export function TransactionRow({
                 currency={transaction.currency}
                 showSign
                 className="shrink-0 text-sm font-semibold"
+                display="symbol"
+                compact
+                compactFrom={1_000_000}
               />
             </div>
           </div>

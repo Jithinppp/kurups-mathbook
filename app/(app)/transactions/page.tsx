@@ -33,7 +33,7 @@ import {
   summarizeTransactions,
   transactionsForAccountMonth,
 } from "@/lib/finance";
-import { formatMoney, formatPercent, formatSignedMoney } from "@/lib/format";
+import { formatMoney, formatPercent } from "@/lib/format";
 import type { TransactionType } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -227,14 +227,13 @@ export default function TransactionsPage() {
                 ? "danger"
                 : "neutral"
             }
-            hint={`Opening ${formatMoney(
-              openingDisplay,
-              currency,
-            )} · carries into ${nextMonthLabel}`}
+            hint={`Opening ${formatMoney(openingDisplay, currency, {
+              compact: true,
+            })} · carries into ${nextMonthLabel}`}
           />
         </div>
         <p className="text-[10px] leading-snug text-subtle sm:hidden">
-          Opening {formatMoney(openingDisplay, currency)} · carries into{" "}
+          Opening {formatMoney(openingDisplay, currency, { compact: true })} · carries into{" "}
           {nextMonthLabel}
         </p>
       </div>
@@ -377,7 +376,8 @@ export default function TransactionsPage() {
             {formatMonth(month)}
           </p>
           <p className="mt-0.5 text-[11px] text-subtle">
-            Net {formatSignedMoney(summary.net, currency)} after spending
+            Net {summary.net < 0 ? "−" : "+"}
+            {formatMoney(summary.net, currency, { compact: true })} after spending
           </p>
         </div>
         <Badge variant={summary.net >= 0 ? "success" : "danger"}>
@@ -427,7 +427,12 @@ function SummaryCard({
           tone === "danger" ? "text-danger" : "text-ink",
         )}
       >
-        <Money value={value} currency={currency} />
+        <Money
+          value={value}
+          currency={currency}
+          display="symbol"
+          compact
+        />
       </p>
       {hint ? (
         <p className="mt-1 hidden text-[10px] leading-snug text-subtle sm:block">

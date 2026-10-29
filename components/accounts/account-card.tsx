@@ -1,16 +1,19 @@
 "use client";
 
-import { ArrowUpRight, CreditCard } from "lucide-react";
+import { ArrowUpRight, Check, CreditCard } from "lucide-react";
 import { AppIcon } from "@/components/app-icon";
 import { Money } from "@/components/money";
+import { currencySymbol, formatCompactNumber } from "@/lib/format";
 import type { AccountWithBalance } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 export function AccountCard({
   account,
+  selected = false,
   onClick,
 }: {
   account: AccountWithBalance;
+  selected?: boolean;
   onClick?: () => void;
 }) {
   if (account.type === "credit_card") {
@@ -22,7 +25,10 @@ export function AccountCard({
       <button
         type="button"
         onClick={onClick}
-        className="group relative min-h-[190px] overflow-hidden rounded-2xl p-5 text-left text-white shadow-[0_12px_32px_rgba(16,17,20,0.12)] transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/25"
+        className={cn(
+          "group relative min-h-[190px] overflow-hidden rounded-2xl p-5 text-left text-white shadow-[0_12px_32px_rgba(16,17,20,0.12)] transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/25",
+          selected && "ring-2 ring-brand/30 ring-offset-2 ring-offset-white",
+        )}
         style={{ backgroundColor: account.color }}
       >
         <div className="pointer-events-none absolute -right-10 -top-12 size-44 rounded-full border border-white/15" />
@@ -40,7 +46,13 @@ export function AccountCard({
                 </span>
               </span>
             </div>
-            <CreditCard className="size-5 text-white/60" />
+            {selected ? (
+              <span className="flex size-6 items-center justify-center rounded-full bg-white/15">
+                <Check className="size-3.5" strokeWidth={3} />
+              </span>
+            ) : (
+              <CreditCard className="size-5 text-white/60" />
+            )}
           </div>
 
           <div className="mt-6">
@@ -52,6 +64,8 @@ export function AccountCard({
                 value={account.balance > 0 ? account.balance : debt}
                 currency={account.currency}
                 codeClassName="text-white/65"
+                display="symbol"
+                compact
               />
             </p>
           </div>
@@ -73,10 +87,7 @@ export function AccountCard({
             <div className="mt-2 flex items-center justify-between text-[10px] text-white/65">
               <span>•••• {account.lastFour ?? "••••"}</span>
               {account.creditLimit ? (
-                <span>
-                  {new Intl.NumberFormat("en-AE").format(account.creditLimit)}{" "}
-                  {account.currency} limit
-                </span>
+                <span>{formatLimit(account.creditLimit, account.currency)} limit</span>
               ) : null}
             </div>
           </div>
@@ -89,7 +100,12 @@ export function AccountCard({
     <button
       type="button"
       onClick={onClick}
-      className="group flex min-h-[190px] flex-col rounded-2xl border border-line-soft bg-white p-5 text-left shadow-[0_4px_24px_rgba(0,0,0,0.025)] transition hover:-translate-y-0.5 hover:border-line focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/15"
+      className={cn(
+        "group flex min-h-[190px] flex-col rounded-2xl border bg-white p-5 text-left shadow-[0_4px_24px_rgba(0,0,0,0.025)] transition hover:-translate-y-0.5 hover:border-line focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/15",
+        selected
+          ? "border-brand/35 ring-2 ring-brand/10"
+          : "border-line-soft",
+      )}
     >
       <div className="flex items-start justify-between gap-3">
         <span
@@ -98,8 +114,13 @@ export function AccountCard({
         >
           <AppIcon name={account.icon} className="size-[18px]" />
         </span>
-        <span className="rounded-md bg-canvas px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-subtle">
-          {account.type === "cash" ? "Cash" : "Bank"}
+        <span
+          className={cn(
+            "rounded-md px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.08em]",
+            selected ? "bg-brand-soft text-brand" : "bg-canvas text-subtle",
+          )}
+        >
+          {selected ? "Selected" : account.type === "cash" ? "Cash" : "Bank"}
         </span>
       </div>
       <div className="mt-4">
@@ -120,7 +141,12 @@ export function AccountCard({
             account.balance < 0 ? "text-danger" : "text-ink",
           )}
         >
-          <Money value={account.balance} currency={account.currency} />
+          <Money
+            value={account.balance}
+            currency={account.currency}
+            display="symbol"
+            compact
+          />
         </p>
       </div>
       <span className="mt-3 inline-flex items-center gap-1 text-[11px] font-medium text-brand opacity-0 transition group-hover:opacity-100">
@@ -128,4 +154,8 @@ export function AccountCard({
       </span>
     </button>
   );
+}
+
+function formatLimit(value: number, currency: string) {
+  return `${currencySymbol(currency)} ${formatCompactNumber(value, currency)}`;
 }

@@ -479,11 +479,11 @@ function CategoryGroup({
       <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-subtle">
         {title}
       </p>
-      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="space-y-1.5">
         {categories.map((category) => (
           <div
             key={category.id}
-            className="flex items-center gap-2 rounded-xl border border-line-soft px-2.5 py-2"
+            className="flex w-full items-center gap-2 rounded-xl border border-line-soft px-3 py-2.5"
           >
             <span
               className="flex size-7 shrink-0 items-center justify-center rounded-lg"

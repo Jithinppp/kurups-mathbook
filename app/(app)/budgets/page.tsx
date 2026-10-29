@@ -193,11 +193,17 @@ export default function BudgetsPage() {
                 remaining < 0 ? "text-danger" : "text-ink",
               )}
             >
-              <Money value={Math.abs(remaining)} currency={currency} />
+              <Money
+                value={Math.abs(remaining)}
+                currency={currency}
+                display="symbol"
+                compact
+                compactFrom={1_000_000}
+              />
             </p>
             <p className="mt-2 text-[11px] text-muted">
-              {formatMoney(spent, currency)} spent of{" "}
-              {formatMoney(totalBudget, currency)}
+              {formatMoney(spent, currency, { compact: true })} spent of{" "}
+              {formatMoney(totalBudget, currency, { compact: true })}
             </p>
             <Progress
               value={progress}
@@ -376,13 +382,26 @@ function BudgetRowItem({
               <Badge variant="warning">Close</Badge>
             ) : null}
           </div>
-          <span className="tabular shrink-0 text-[11px] font-medium text-muted">
-            {row.budget
-              ? `${formatMoney(row.spent, row.currency)} / ${formatMoney(
-                  row.budget.amount,
-                  row.currency,
-                )}`
-              : "No budget"}
+          <span className="tabular flex shrink-0 items-baseline gap-1 text-[11px] font-medium text-muted">
+            {row.budget ? (
+              <>
+                <Money
+                  value={row.spent}
+                  currency={row.currency}
+                  display="symbol"
+                  compact
+                />
+                <span className="text-subtle">/</span>
+                <Money
+                  value={row.budget.amount}
+                  currency={row.currency}
+                  display="symbol"
+                  compact
+                />
+              </>
+            ) : (
+              "No budget"
+            )}
           </span>
         </div>
         <div className="mt-1.5 flex items-center gap-2.5">
@@ -437,7 +456,16 @@ function SummaryMetric({
               : "text-ink",
         )}
       >
-        {isCount ? value : <Money value={value} currency={currency ?? "AED"} />}
+        {isCount ? (
+          value
+        ) : (
+          <Money
+            value={value}
+            currency={currency ?? "AED"}
+            display="symbol"
+            compact
+          />
+        )}
       </p>
     </div>
   );

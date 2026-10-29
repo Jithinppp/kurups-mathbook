@@ -185,6 +185,8 @@ export function AccountSwitcher({ className }: { className?: string }) {
                       value={balance}
                       currency={account.currency}
                       className="mt-0.5 text-[12px] font-semibold"
+                      display="symbol"
+                      compact
                     />
                   </span>
                 </button>
