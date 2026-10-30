@@ -12,7 +12,6 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { AccountSwitcher } from "@/components/account-switcher";
 import { AppIcon } from "@/components/app-icon";
 import { DonutChart, type DonutSegment } from "@/components/charts/donut-chart";
 import { MonthlyBars } from "@/components/charts/monthly-bars";
@@ -206,6 +205,10 @@ export default function DashboardPage() {
           selectedAccount.creditLimit - Math.max(0, -closingBalance),
         )
       : null;
+  const heroOverlay = Math.min(
+    0.55,
+    Math.max(0.14, relativeLuminance(selectedAccount.color) * 0.75),
+  );
 
   return (
     <div className="space-y-6 sm:space-y-7">
@@ -213,15 +216,20 @@ export default function DashboardPage() {
         eyebrow="Your money"
         title={`Welcome back, ${firstName}`}
         description={`A clear view of ${selectedAccount.name} in ${monthLabel}. Only this account's activity counts here, and its balance carries into ${nextMonthLabel}.`}
-        actions={
-          <>
-            <MonthPicker value={month} onChange={setMonth} />
-            <AccountSwitcher />
-          </>
-        }
+        actions={<MonthPicker value={month} onChange={setMonth} />}
       />
 
-      <section className="relative overflow-hidden rounded-[24px] bg-brand p-5 text-white shadow-[0_18px_44px_rgba(113,50,245,0.22)] sm:p-7 lg:p-8">
+      <section
+        className="relative overflow-hidden rounded-[24px] p-5 text-white sm:p-7 lg:p-8"
+        style={{
+          backgroundColor: selectedAccount.color,
+          boxShadow: `0 18px 44px ${selectedAccount.color}38`,
+        }}
+      >
+        <div
+          className="pointer-events-none absolute inset-0"
+          style={{ backgroundColor: `rgba(16, 17, 20, ${heroOverlay})` }}
+        />
         <div
           className="pointer-events-none absolute inset-0 opacity-[0.12]"
           style={{
@@ -645,6 +653,24 @@ function StatCard({
       <p className="mt-1 text-[10px] leading-relaxed text-subtle sm:text-[11px]">{hint}</p>
     </Card>
   );
+}
+
+/**
+ * The account colour is the hero surface. Light colours get a stronger dark
+ * wash so the white account list and labels stay readable.
+ */
+function relativeLuminance(hex: string) {
+  const value = hex.replace("#", "");
+  if (value.length !== 6) return 0;
+
+  const [r, g, b] = [0, 2, 4].map((index) => {
+    const channel = Number.parseInt(value.slice(index, index + 2), 16) / 255;
+    return channel <= 0.03928
+      ? channel / 12.92
+      : ((channel + 0.055) / 1.055) ** 2.4;
+  });
+
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
 }
 
 function OverviewAccountRow({

@@ -12,7 +12,6 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { AccountSwitcher } from "@/components/account-switcher";
 import { Money } from "@/components/money";
 import { MonthPicker } from "@/components/month-picker";
 import { PageHeader } from "@/components/page-header";
@@ -169,19 +168,7 @@ export default function TransactionsPage() {
         description={`Every entry for ${selectedAccount.name} in ${formatMonth(
           month,
         )}. Only this account is shown; its balance carries forward.`}
-        actions={
-          <>
-            <MonthPicker value={month} onChange={setMonth} />
-            <AccountSwitcher />
-            <Button
-              onClick={() => openTransaction()}
-              className="hidden sm:inline-flex"
-            >
-              <Plus className="size-4" />
-              Add
-            </Button>
-          </>
-        }
+        actions={<MonthPicker value={month} onChange={setMonth} />}
       />
 
       <div className="space-y-2">

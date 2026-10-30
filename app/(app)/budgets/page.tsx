@@ -12,11 +12,9 @@ import {
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { AccountSwitcher } from "@/components/account-switcher";
 import { AppIcon } from "@/components/app-icon";
 import { BudgetDialog } from "@/components/budgets/budget-dialog";
 import { Money } from "@/components/money";
-import { MonthPicker } from "@/components/month-picker";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -39,7 +37,7 @@ import { cn } from "@/lib/utils";
 export default function BudgetsPage() {
   const { categories, transactions, budgets, setBudgets, ready } = useData();
   const { selectedAccount } = useAccountSelection();
-  const [month, setMonth] = useState(currentMonthKey());
+  const [month] = useState(currentMonthKey());
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<BudgetRow | null>(null);
   const [applying, setApplying] = useState(false);
@@ -161,14 +159,10 @@ export default function BudgetsPage() {
           month,
         )}. Only this account's expenses count; plans reset monthly and balances carry forward.`}
         actions={
-          <>
-            <MonthPicker value={month} onChange={setMonth} />
-            <AccountSwitcher />
-            <Button onClick={openNew} className="hidden sm:inline-flex">
-              <Plus className="size-4" />
-              Set budget
-            </Button>
-          </>
+          <Button onClick={openNew} className="hidden sm:inline-flex">
+            <Plus className="size-4" />
+            Set budget
+          </Button>
         }
       />
 
