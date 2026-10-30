@@ -34,6 +34,7 @@ export function TransactionRow({
   showDate?: boolean;
   perspectiveAccountId?: string;
 }) {
+  const [viewOpen, setViewOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -67,6 +68,12 @@ export function TransactionRow({
         : "text-muted";
   const handleEdit = onEdit ?? onClick;
   const showActions = !compact && Boolean(handleEdit || onDelete);
+  const typeLabel =
+    transaction.type === "transfer"
+      ? "Transfer"
+      : transaction.type === "income"
+        ? "Income"
+        : "Expense";
 
   async function handleDelete() {
     if (!onDelete || deleting) return;
@@ -90,7 +97,9 @@ export function TransactionRow({
       <div className="flex items-center gap-1 px-4 transition hover:bg-canvas/80 sm:gap-2 sm:px-5">
         <button
           type="button"
-          onClick={handleEdit}
+          onClick={() => setViewOpen(true)}
+          aria-label={`View transaction: ${title}`}
+          aria-haspopup="dialog"
           className={cn(
             "grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand/25",
             compact ? "py-2.5" : "py-3",
@@ -172,6 +181,88 @@ export function TransactionRow({
         ) : null}
       </div>
 
+      {viewOpen ? (
+        <Dialog
+          open
+          onOpenChange={setViewOpen}
+          title="Transaction details"
+          description="A read-only view of this entry."
+          footer={
+            <div className="flex items-center justify-end">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setViewOpen(false)}
+              >
+                Close
+              </Button>
+            </div>
+          }
+        >
+          <div className="space-y-4">
+            <div className="flex items-start justify-between gap-3 rounded-2xl border border-line-soft bg-canvas px-4 py-4">
+              <div className="flex min-w-0 items-center gap-3">
+                <span
+                  className="flex size-10 shrink-0 items-center justify-center rounded-xl"
+                  style={{ backgroundColor: `${color}14`, color }}
+                >
+                  {isTransfer ? (
+                    <ArrowLeftRight className="size-4" strokeWidth={1.9} />
+                  ) : (
+                    <AppIcon name={icon} className="size-4" />
+                  )}
+                </span>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-ink">
+                    {title}
+                  </p>
+                  <p className="mt-0.5 text-[11px] text-muted">
+                    {formatDate(transaction.occurredOn)} · {subtitle}
+                  </p>
+                </div>
+              </div>
+              <Money
+                value={amount}
+                currency={transaction.currency}
+                showSign
+                className="shrink-0 text-sm font-semibold"
+                display="symbol"
+                compact
+                compactFrom={1_000_000}
+              />
+            </div>
+
+            <dl className="space-y-3">
+              <DetailLine label="Type" value={typeLabel} />
+              <DetailLine
+                label={isTransfer ? "From" : "Account"}
+                value={account?.name ?? "—"}
+              />
+              {isTransfer ? (
+                <DetailLine
+                  label="Destination"
+                  value={transferAccount?.name ?? "—"}
+                />
+              ) : (
+                <DetailLine
+                  label="Category"
+                  value={category?.name ?? "Uncategorized"}
+                />
+              )}
+              <DetailLine label="Currency" value={transaction.currency} />
+              <DetailLine
+                label="Date"
+                value={formatDate(transaction.occurredOn)}
+              />
+              <DetailLine
+                label="Note"
+                value={transaction.notes?.trim() || "No note"}
+              />
+            </dl>
+          </div>
+        </Dialog>
+      ) : null}
+
       {confirmOpen ? (
         <Dialog
           open
@@ -226,5 +317,18 @@ export function TransactionRow({
         </Dialog>
       ) : null}
     </>
+  );
+}
+
+function DetailLine({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-start justify-between gap-4 border-b border-line-soft pb-3 last:border-0 last:pb-0">
+      <dt className="text-[11px] font-medium uppercase tracking-[0.08em] text-subtle">
+        {label}
+      </dt>
+      <dd className="max-w-[68%] text-right text-[13px] font-medium text-ink">
+        {value}
+      </dd>
+    </div>
   );
 }
