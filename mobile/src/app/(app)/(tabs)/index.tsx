@@ -1,6 +1,5 @@
 import { useMemo, useState } from "react";
 import {
-  Alert,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -15,15 +14,17 @@ import {
   ArrowDownLeft,
   ArrowUpRight,
   ChevronRight,
+  CreditCard,
   Plus,
   ReceiptText,
   TrendingUp,
+  Wallet,
 } from "lucide-react-native";
 import {
+  ACCOUNT_TYPE_LABEL,
   accountBalanceAt,
   accountBalanceCaption,
   accountDisplayBalance,
-  accountOpeningBalanceAt,
   budgetRows,
   currencySymbol,
   currentMonthKey,
@@ -37,19 +38,17 @@ import {
   summarizeTransactions,
   transactionsForAccount,
   transactionsForAccountMonth,
+  type AccountWithBalance,
 } from "@asharibook/shared";
 
 import { useAccountSelection } from "@/contexts/account-selection";
 import { useAuth } from "@/contexts/auth";
 import { useData } from "@/contexts/data";
-import { useToast } from "@/contexts/toast";
-import { AccountCard } from "@/components/account-card";
-import { AccountSwitcher } from "@/components/account-switcher";
+import { AppIcon } from "@/components/ui/app-icon";
 import { DonutChart } from "@/components/charts/donut-chart";
 import { MonthlyBars } from "@/components/charts/monthly-bars";
 import { MonthPicker } from "@/components/month-picker";
 import { TransactionRow } from "@/components/transaction-row";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -63,10 +62,8 @@ export default function OverviewScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  const { profile, categories, transactions, budgets, ready, error, refresh, deleteTransaction } =
-    useData();
+  const { profile, categories, transactions, budgets, ready, error, refresh } = useData();
   const { activeAccounts, selectedAccount, setSelectedAccountId } = useAccountSelection();
-  const { showToast } = useToast();
   const [month, setMonth] = useState(currentMonthKey());
   const [refreshing, setRefreshing] = useState(false);
 
@@ -85,26 +82,24 @@ export default function OverviewScreen() {
   const closing = selectedAccount
     ? accountBalanceAt(selectedAccount, transactions, month)
     : 0;
-  const opening = selectedAccount
-    ? accountOpeningBalanceAt(selectedAccount, transactions, month)
-    : 0;
   const rows = useMemo(
     () =>
       selectedAccount
         ? budgetRows(
             categories,
-            transactions,
+            monthTransactions,
             budgets,
             month,
             selectedAccount.id,
             selectedAccount.currency,
           )
         : [],
-    [categories, transactions, budgets, month, selectedAccount],
+    [categories, monthTransactions, budgets, month, selectedAccount],
   );
   const budgetedRows = rows.filter((row) => row.budget);
   const totalBudget = budgetedRows.reduce((total, row) => total + (row.budget?.amount ?? 0), 0);
   const totalBudgetSpent = budgetedRows.reduce((total, row) => total + row.spent, 0);
+  const budgetLeft = totalBudget - totalBudgetSpent;
   const overBudget = overspentCategories(rows);
   const trend = useMemo(
     () => monthlyTrend(accountTransactions, month, 6),
@@ -129,46 +124,36 @@ export default function OverviewScreen() {
   const projected = selectedAccount
     ? projectedSpend(accountTransactions, month)
     : null;
+  const monthBalanceByAccount = useMemo(
+    () =>
+      new Map(
+        activeAccounts.map((account) => [
+          account.id,
+          accountBalanceAt(account, transactions, month),
+        ]),
+      ),
+    [activeAccounts, transactions, month],
+  );
+  const closingDisplay = selectedAccount
+    ? accountDisplayBalance(selectedAccount, closing)
+    : 0;
+  const balanceLabel = selectedAccount
+    ? selectedAccount.type === "credit_card"
+      ? closing > 0
+        ? "Credit balance"
+        : "Card owed"
+      : closing < 0
+        ? "Overdrawn"
+        : "Closing balance"
+    : "Balance";
+  const heroOverlay = selectedAccount
+    ? Math.min(0.55, Math.max(0.14, relativeLuminance(selectedAccount.color) * 0.75))
+    : 0;
 
   async function handleRefresh() {
     setRefreshing(true);
     refresh();
     setTimeout(() => setRefreshing(false), 600);
-  }
-
-  function openTransactionActions(id: string, title: string) {
-    Alert.alert(title, "What would you like to do?", [
-      { text: "Edit", onPress: () => router.push(`/transaction/${id}`) },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: () => {
-          Alert.alert(
-            "Delete transaction?",
-            "This entry will be removed from your ledger. It cannot be undone.",
-            [
-              { text: "Keep it", style: "cancel" },
-              {
-                text: "Delete",
-                style: "destructive",
-                onPress: async () => {
-                  try {
-                    await deleteTransaction(id);
-                    showToast("Transaction deleted");
-                  } catch (caught) {
-                    showToast(
-                      caught instanceof Error ? caught.message : "Could not delete transaction.",
-                      "error",
-                    );
-                  }
-                },
-              },
-            ],
-          );
-        },
-      },
-      { text: "Cancel", style: "cancel" },
-    ]);
   }
 
   return (
@@ -201,13 +186,12 @@ export default function OverviewScreen() {
         <PageHeader
           eyebrow="Overview"
           title={`Hello, ${(profile.fullName || user?.name || "there").split(" ")[0]}`}
-          description="A calm view of the account you selected, one month at a time."
+          description="Every account in one place. Pick one to focus the page, or add an entry to any account."
         />
 
         <View style={styles.toolbar}>
           <MonthPicker month={month} onChange={setMonth} />
         </View>
-        <AccountSwitcher fullWidth />
 
         {error ? (
           <View style={styles.errorBanner}>
@@ -232,103 +216,109 @@ export default function OverviewScreen() {
         ) : (
           <>
             <View style={[styles.hero, { backgroundColor: selectedAccount.color }]}>
+              <View
+                style={[
+                  styles.heroOverlay,
+                  { backgroundColor: `rgba(16, 17, 20, ${heroOverlay})` },
+                ]}
+              />
               <View style={styles.heroRingLarge} />
               <View style={styles.heroRingSmall} />
-              <View style={styles.heroTop}>
-                <View style={styles.heroIdentity}>
-                  <View style={styles.heroIcon}>
-                    <Text style={styles.heroIconText}>
-                      {selectedAccount.name.slice(0, 1).toUpperCase()}
+
+              <View style={styles.heroContent}>
+                <View style={styles.heroTop}>
+                  <View style={styles.heroIntro}>
+                    <Text style={styles.heroEyebrow}>All accounts</Text>
+                    <Text style={styles.heroDescription}>
+                      Balances at the end of {formatMonth(month, "long")}. Pick an
+                      account to focus the page, or add an entry to any account.
                     </Text>
                   </View>
-                  <View>
-                    <Text style={styles.heroName}>{selectedAccount.name}</Text>
-                    <Text style={styles.heroMeta}>
-                      {formatMonth(month, "long")} · {selectedAccount.currency}
+                  <View style={styles.heroCount}>
+                    <Text style={styles.heroCountText}>
+                      {activeAccounts.length} active
                     </Text>
                   </View>
                 </View>
-                <Badge tone="brand">
-                  {selectedAccount.type === "credit_card"
-                    ? "Credit card"
-                    : selectedAccount.type === "cash"
-                      ? "Cash"
-                      : "Bank"}
-                </Badge>
-              </View>
 
-              <View style={styles.heroBalance}>
-                <Text style={styles.heroLabel}>
-                  {accountBalanceCaption(selectedAccount, closing)}
-                </Text>
-                <Money
-                  value={accountDisplayBalance(selectedAccount, closing)}
-                  currency={selectedAccount.currency}
-                  size={32}
-                  color={colors.white}
-                  weight="semibold"
-                  display="symbol"
-                  compact
-                  compactFrom={1_000_000_000}
-                />
-                <Text style={styles.heroOpening}>
-                  Opened at {formatCompact(opening, selectedAccount.currency)}
-                </Text>
-              </View>
+                <View style={styles.accountList}>
+                  {activeAccounts.map((account) => (
+                    <OverviewAccountRow
+                      key={account.id}
+                      account={account}
+                      balance={monthBalanceByAccount.get(account.id) ?? account.balance}
+                      selected={account.id === selectedAccount.id}
+                      onSelect={() => setSelectedAccountId(account.id)}
+                      onAddTransaction={() =>
+                        router.push(
+                          `/transaction/new?accountId=${encodeURIComponent(account.id)}`,
+                        )
+                      }
+                    />
+                  ))}
+                </View>
 
-              <View style={styles.heroFooter}>
-                <View style={styles.heroFooterRow}>
-                  <Text style={styles.heroFooterLabel}>Spent</Text>
-                  <Money
-                    value={summary.expenses}
-                    currency={selectedAccount.currency}
-                    size={13}
-                    color={colors.white}
-                    display="symbol"
-                  />
-                </View>
-                <View style={styles.heroFooterRow}>
-                  <Text style={styles.heroFooterLabel}>Income</Text>
-                  <Money
-                    value={summary.income}
-                    currency={selectedAccount.currency}
-                    size={13}
-                    color={colors.white}
-                    display="symbol"
-                  />
-                </View>
-                <View style={styles.heroFooterRow}>
-                  <Text style={styles.heroFooterLabel}>Net</Text>
-                  <Money
-                    value={summary.net}
-                    currency={selectedAccount.currency}
-                    size={13}
-                    color={colors.white}
-                    display="symbol"
-                    showSign
-                  />
+                <View style={styles.heroLinks}>
+                  <Pressable
+                    onPress={() => router.push("/transactions")}
+                    style={styles.heroLink}
+                  >
+                    <Text style={styles.heroLinkText}>View transactions</Text>
+                    <ChevronRight color="rgba(255,255,255,0.65)" size={13} />
+                  </Pressable>
+                  <Pressable
+                    onPress={() => router.push("/accounts")}
+                    style={styles.heroLink}
+                  >
+                    <Text style={styles.heroLinkText}>Manage accounts</Text>
+                    <ChevronRight color="rgba(255,255,255,0.65)" size={13} />
+                  </Pressable>
                 </View>
               </View>
             </View>
 
             <View style={styles.statsRow}>
               <StatCard
-                label="Spent"
+                label="Spent this month"
                 value={summary.expenses}
                 currency={selectedAccount.currency}
-                icon={<ArrowUpRight color={colors.brand} size={15} />}
+                hint={`${summary.count} ${
+                  summary.count === 1 ? "entry" : "entries"
+                } for ${selectedAccount.name}`}
+                icon={<ArrowUpRight color={colors.brand} size={14} />}
               />
               <StatCard
-                label="Income"
+                label="Money in"
                 value={summary.income}
                 currency={selectedAccount.currency}
-                icon={<ArrowDownLeft color={colors.success} size={15} />}
+                hint="Income recorded this month"
+                icon={<ArrowDownLeft color={colors.success} size={14} />}
               />
               <StatCard
-                label="Transactions"
-                value={summary.count}
-                currency=""
-                icon={<ReceiptText color={colors.warning} size={15} />}
+                label={budgetLeft < 0 ? "Over budget" : "Budget left"}
+                value={Math.abs(budgetLeft)}
+                currency={selectedAccount.currency}
+                hint={
+                  totalBudget > 0
+                    ? `${Math.round((totalBudgetSpent / totalBudget) * 100)}% of plan used`
+                    : "No budgets set for this month"
+                }
+                tone={budgetLeft < 0 ? "danger" : "neutral"}
+                icon={<Wallet color={colors.warning} size={14} />}
+              />
+              <StatCard
+                label={balanceLabel}
+                value={closingDisplay}
+                currency={selectedAccount.currency}
+                hint={`${formatMonth(month, "long")} close`}
+                tone={closing < 0 ? "danger" : "neutral"}
+                icon={
+                  selectedAccount.type === "credit_card" ? (
+                    <CreditCard color={colors.muted} size={14} />
+                  ) : (
+                    <Wallet color={colors.muted} size={14} />
+                  )
+                }
               />
             </View>
 
@@ -451,10 +441,6 @@ export default function OverviewScreen() {
                         (account) => account.id === transaction.transferAccountId,
                       )}
                       perspectiveAccountId={selectedAccount.id}
-                      onPress={() => router.push(`/transaction/${transaction.id}`)}
-                      onActions={() =>
-                        openTransactionActions(transaction.id, transaction.merchant || "Transaction")
-                      }
                     />
                   </View>
                 ))
@@ -467,32 +453,6 @@ export default function OverviewScreen() {
                 </View>
               )}
             </Card>
-
-            <View style={styles.accountsSection}>
-              <View style={styles.sectionHeader}>
-                <View>
-                  <Text style={styles.sectionTitle}>Your accounts</Text>
-                  <Text style={styles.sectionDescription}>
-                    Tap a card to switch the whole workspace.
-                  </Text>
-                </View>
-                <Pressable onPress={() => router.push("/accounts")} style={styles.link}>
-                  <Text style={styles.linkText}>Manage</Text>
-                  <ChevronRight color={colors.brand} size={14} />
-                </Pressable>
-              </View>
-              <View style={styles.accountGrid}>
-                {activeAccounts.map((account) => (
-                  <View key={account.id} style={styles.accountCell}>
-                    <AccountCard
-                      account={account}
-                      selected={account.id === selectedAccount.id}
-                      onPress={() => setSelectedAccountId(account.id)}
-                    />
-                  </View>
-                ))}
-              </View>
-            </View>
           </>
         )}
 
@@ -510,24 +470,128 @@ function StatCard({
   label,
   value,
   currency,
+  hint,
+  tone = "neutral",
   icon,
 }: {
   label: string;
   value: number;
   currency: string;
+  hint: string;
+  tone?: "neutral" | "danger";
   icon: React.ReactNode;
 }) {
   return (
     <View style={styles.statCard}>
-      <View style={styles.statIcon}>{icon}</View>
-      <Text style={styles.statLabel}>{label}</Text>
-      {currency ? (
-        <Money value={value} currency={currency} size={13} display="symbol" compact />
-      ) : (
-        <Text style={styles.statValue}>{Math.round(value)}</Text>
-      )}
+      <View style={styles.statTop}>
+        <View style={styles.statIcon}>{icon}</View>
+        <Text style={styles.statLabel} numberOfLines={2}>
+          {label}
+        </Text>
+      </View>
+      <Money
+        value={value}
+        currency={currency}
+        size={16}
+        color={tone === "danger" ? colors.danger : colors.ink}
+        display="symbol"
+        compact
+      />
+      <Text style={styles.statHint} numberOfLines={2}>
+        {hint}
+      </Text>
     </View>
   );
+}
+
+function OverviewAccountRow({
+  account,
+  balance,
+  selected,
+  onSelect,
+  onAddTransaction,
+}: {
+  account: AccountWithBalance;
+  balance: number;
+  selected: boolean;
+  onSelect: () => void;
+  onAddTransaction: () => void;
+}) {
+  const display = accountDisplayBalance(account, balance);
+  const caption = accountBalanceCaption(account, balance);
+  const kind = ACCOUNT_TYPE_LABEL[account.type] ?? "Account";
+
+  return (
+    <View style={[styles.accountRow, selected && styles.accountRowSelected]}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`Select ${account.name}`}
+        accessibilityState={{ selected }}
+        onPress={onSelect}
+        style={styles.accountTop}
+      >
+        <View style={styles.accountIcon}>
+          <AppIcon name={account.icon} color={colors.white} size={16} />
+        </View>
+        <View style={styles.accountCopy}>
+          <View style={styles.accountNameRow}>
+            <Text style={styles.accountName} numberOfLines={1}>
+              {account.name}
+            </Text>
+            {selected ? (
+              <View style={styles.selectedBadge}>
+                <Text style={styles.selectedBadgeText}>Selected</Text>
+              </View>
+            ) : null}
+          </View>
+          <Text style={styles.accountMeta} numberOfLines={1}>
+            {kind} · {account.currency}
+            {account.institution ? ` · ${account.institution}` : ""}
+            {account.lastFour ? ` · •••• ${account.lastFour}` : ""}
+          </Text>
+        </View>
+      </Pressable>
+
+      <View style={styles.accountBottom}>
+        <View style={styles.accountBalance}>
+          <Text style={styles.accountCaption}>{caption}</Text>
+          <Money
+            value={display}
+            currency={account.currency}
+            size={15}
+            color={colors.white}
+            display="symbol"
+            compact
+          />
+        </View>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Add transaction for ${account.name}`}
+          onPress={onAddTransaction}
+          style={({ pressed }) => [styles.addTransaction, pressed && { opacity: 0.8 }]}
+        >
+          <Plus color={colors.white} size={12} />
+          <Text style={styles.addTransactionText} numberOfLines={1}>
+            Add transaction
+          </Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
+function relativeLuminance(hex: string) {
+  const value = hex.replace("#", "");
+  if (value.length !== 6) return 0;
+
+  const [r, g, b] = [0, 2, 4].map((index) => {
+    const channel = Number.parseInt(value.slice(index, index + 2), 16) / 255;
+    return channel <= 0.03928
+      ? channel / 12.92
+      : ((channel + 0.055) / 1.055) ** 2.4;
+  });
+
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
 }
 
 function formatMoneyShort(value: number, currency: string) {
@@ -542,13 +606,6 @@ function formatMoneyShort(value: number, currency: string) {
 
 function formatNumberShort(value: number) {
   return new Intl.NumberFormat("en-AE", { maximumFractionDigits: 0 }).format(value);
-}
-
-function formatCompact(value: number, currency: string) {
-  return `${currencySymbol(currency)} ${new Intl.NumberFormat(currency === "INR" ? "en-IN" : "en-AE", {
-    notation: "compact",
-    maximumFractionDigits: 1,
-  }).format(Math.abs(value))}`;
 }
 
 const styles = StyleSheet.create({
@@ -577,9 +634,14 @@ const styles = StyleSheet.create({
   hero: {
     borderRadius: 24,
     padding: 18,
-    minHeight: 228,
     overflow: "hidden",
-    justifyContent: "space-between",
+  },
+  heroOverlay: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
   },
   heroRingLarge: {
     position: "absolute",
@@ -601,51 +663,108 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.12)",
   },
-  heroTop: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: 10 },
-  heroIdentity: { flexDirection: "row", alignItems: "center", gap: 10, flex: 1 },
-  heroIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 13,
-    backgroundColor: "rgba(255,255,255,0.16)",
+  heroContent: { gap: 14 },
+  heroTop: { flexDirection: "row", alignItems: "flex-start", gap: 10 },
+  heroIntro: { flex: 1, minWidth: 0, gap: 3 },
+  heroEyebrow: {
+    fontFamily: font.semibold,
+    fontSize: 10,
+    letterSpacing: 1.2,
+    textTransform: "uppercase",
+    color: "rgba(255,255,255,0.65)",
+  },
+  heroDescription: {
+    fontFamily: font.regular,
+    fontSize: 10,
+    lineHeight: 15,
+    color: "rgba(255,255,255,0.5)",
+  },
+  heroCount: {
+    borderRadius: 6,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+  },
+  heroCountText: { fontFamily: font.semibold, fontSize: 8, color: colors.white },
+  accountList: { gap: 8 },
+  accountRow: {
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+    backgroundColor: "rgba(255,255,255,0.06)",
+    padding: 10,
+    gap: 8,
+  },
+  accountRowSelected: {
+    borderColor: "rgba(255,255,255,0.25)",
+    backgroundColor: "rgba(255,255,255,0.15)",
+  },
+  accountTop: { flexDirection: "row", alignItems: "center", gap: 9 },
+  accountIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 11,
+    backgroundColor: "rgba(255,255,255,0.15)",
     alignItems: "center",
     justifyContent: "center",
   },
-  heroIconText: { fontFamily: font.semibold, fontSize: 17, color: colors.white },
-  heroName: { fontFamily: font.semibold, fontSize: 14, color: colors.white },
-  heroMeta: { marginTop: 2, fontFamily: font.regular, fontSize: 10, color: "rgba(255,255,255,0.68)" },
-  heroBalance: { gap: 3, paddingVertical: 16 },
-  heroLabel: {
-    fontFamily: font.medium,
-    fontSize: 9,
-    letterSpacing: 1.2,
+  accountCopy: { flex: 1, minWidth: 0 },
+  accountNameRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  accountName: { flexShrink: 1, fontFamily: font.semibold, fontSize: 12, color: colors.white },
+  selectedBadge: {
+    flexShrink: 0,
+    borderRadius: 4,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+  },
+  selectedBadgeText: {
+    fontFamily: font.semibold,
+    fontSize: 7,
+    letterSpacing: 0.7,
     textTransform: "uppercase",
-    color: "rgba(255,255,255,0.68)",
+    color: "rgba(255,255,255,0.8)",
   },
-  heroOpening: { fontFamily: font.regular, fontSize: 10, color: "rgba(255,255,255,0.55)" },
-  heroFooter: {
-    borderTopWidth: 1,
-    borderTopColor: "rgba(255,255,255,0.14)",
-    paddingTop: 12,
-    gap: 7,
+  accountMeta: {
+    marginTop: 2,
+    fontFamily: font.regular,
+    fontSize: 9,
+    color: "rgba(255,255,255,0.55)",
   },
-  heroFooterRow: {
+  accountBottom: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: 12,
+    gap: 10,
   },
-  heroFooterLabel: {
+  accountBalance: { flex: 1, minWidth: 0, gap: 1 },
+  accountCaption: {
     fontFamily: font.medium,
     fontSize: 8,
-    letterSpacing: 0.9,
+    letterSpacing: 0.8,
     textTransform: "uppercase",
-    color: "rgba(255,255,255,0.58)",
+    color: "rgba(255,255,255,0.45)",
   },
-  statsRow: { flexDirection: "row", gap: 9 },
+  addTransaction: {
+    flexShrink: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    height: 30,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.2)",
+    paddingHorizontal: 8,
+  },
+  addTransactionText: { fontFamily: font.semibold, fontSize: 9, color: colors.white },
+  heroLinks: { flexDirection: "row", flexWrap: "wrap", gap: 14 },
+  heroLink: { flexDirection: "row", alignItems: "center", gap: 2 },
+  heroLinkText: { fontFamily: font.medium, fontSize: 10, color: "rgba(255,255,255,0.65)" },
+  statsRow: { flexDirection: "row", flexWrap: "wrap", gap: 9 },
   statCard: {
-    flex: 1,
-    gap: 5,
+    width: "48%",
+    minHeight: 108,
+    gap: 6,
     borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.lineSoft,
@@ -653,16 +772,17 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 10,
   },
+  statTop: { flexDirection: "row", alignItems: "center", gap: 7 },
   statIcon: {
-    width: 28,
-    height: 28,
-    borderRadius: 9,
+    width: 26,
+    height: 26,
+    borderRadius: 8,
     backgroundColor: colors.canvas,
     alignItems: "center",
     justifyContent: "center",
   },
-  statLabel: { fontFamily: font.medium, fontSize: 9, color: colors.subtle },
-  statValue: { fontFamily: font.semibold, fontSize: 17, color: colors.ink },
+  statLabel: { flex: 1, fontFamily: font.medium, fontSize: 9, lineHeight: 12, color: colors.subtle },
+  statHint: { fontFamily: font.regular, fontSize: 9, lineHeight: 13, color: colors.subtle },
   section: { gap: 14, padding: 16 },
   sectionHeader: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: 10 },
   sectionTitle: { fontFamily: font.semibold, fontSize: 14, color: colors.ink, letterSpacing: -0.2 },
@@ -696,8 +816,5 @@ const styles = StyleSheet.create({
   emptyInline: { paddingVertical: 20, alignItems: "center" },
   emptyInlineTitle: { fontFamily: font.semibold, fontSize: 12, color: colors.ink },
   emptyInlineText: { marginTop: 3, fontFamily: font.regular, fontSize: 10, color: colors.subtle },
-  accountsSection: { gap: 12 },
-  accountGrid: { flexDirection: "row", flexWrap: "wrap", gap: 9 },
-  accountCell: { width: "48.6%" },
   loadingNote: { alignItems: "center", paddingVertical: 12 },
 });

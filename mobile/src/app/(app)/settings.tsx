@@ -344,6 +344,8 @@ export default function SettingsScreen() {
                 value={name}
                 onChangeText={setName}
                 placeholder="Your name"
+                returnKeyType="done"
+                onSubmitEditing={() => void saveName()}
                 style={styles.nameInput}
               />
             </View>
@@ -543,6 +545,8 @@ export default function SettingsScreen() {
               placeholder="e.g. Pets"
               autoCapitalize="words"
               autoFocus
+              returnKeyType="done"
+              onSubmitEditing={() => void saveCategory()}
             />
           </Field>
           <Field label="Type">

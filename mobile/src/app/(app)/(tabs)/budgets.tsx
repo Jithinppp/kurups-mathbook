@@ -31,9 +31,7 @@ import {
 import { useAccountSelection } from "@/contexts/account-selection";
 import { useData } from "@/contexts/data";
 import { useToast } from "@/contexts/toast";
-import { AccountSwitcher } from "@/components/account-switcher";
 import { BudgetRow } from "@/components/budget-row";
-import { MonthPicker } from "@/components/month-picker";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -48,7 +46,7 @@ export default function BudgetsScreen() {
   const { categories, transactions, budgets, setBudgets, refresh } = useData();
   const { selectedAccount } = useAccountSelection();
   const { showToast } = useToast();
-  const [month, setMonth] = useState(currentMonthKey());
+  const [month] = useState(currentMonthKey());
   const [refreshing, setRefreshing] = useState(false);
   const [applying, setApplying] = useState(false);
 
@@ -161,20 +159,23 @@ export default function BudgetsScreen() {
         <PageHeader
           eyebrow="Plan"
           title="Budgets"
-          description="Give every category a ceiling. Plans belong to this account and reset by month."
+          description={
+            selectedAccount
+              ? `Give ${selectedAccount.name} a plan for ${formatMonth(
+                  month,
+                  "long",
+                )}. Plans reset monthly and balances carry forward.`
+              : "Give every category a ceiling. Plans belong to an account and reset by month."
+          }
           actions={
             <Button
-              label="Add"
+              label="Set budget"
               size="sm"
               icon={<Plus color={colors.white} size={15} />}
               onPress={() => openBudget()}
             />
           }
         />
-        <View style={styles.toolbar}>
-          <MonthPicker month={month} onChange={setMonth} />
-        </View>
-        <AccountSwitcher fullWidth />
 
         {!selectedAccount ? (
           <EmptyState
@@ -312,7 +313,6 @@ export default function BudgetsScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.canvas },
   scroll: { padding: 18, gap: 16 },
-  toolbar: { flexDirection: "row", alignItems: "center", gap: 8 },
   planCard: {
     borderRadius: 24,
     backgroundColor: colors.ink,

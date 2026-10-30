@@ -169,6 +169,8 @@ export function AccountForm({ editing }: { editing?: Account | null }) {
           }
           autoCapitalize="words"
           autoFocus={!editing}
+          returnKeyType="done"
+          onSubmitEditing={() => void handleSave()}
         />
       </Field>
 
@@ -179,6 +181,8 @@ export function AccountForm({ editing }: { editing?: Account | null }) {
           placeholder={
             isCash ? "e.g. Kept at home" : isCard ? "e.g. FAB" : "e.g. Emirates NBD"
           }
+          returnKeyType="done"
+          onSubmitEditing={() => void handleSave()}
         />
       </Field>
 
@@ -200,6 +204,8 @@ export function AccountForm({ editing }: { editing?: Account | null }) {
           onChangeText={setOpening}
           placeholder="0.00"
           keyboardType="decimal-pad"
+          returnKeyType="done"
+          onSubmitEditing={() => void handleSave()}
         />
       </Field>
 
@@ -211,6 +217,8 @@ export function AccountForm({ editing }: { editing?: Account | null }) {
               onChangeText={setCreditLimit}
               placeholder="e.g. 15000"
               keyboardType="decimal-pad"
+              returnKeyType="done"
+              onSubmitEditing={() => void handleSave()}
             />
           </Field>
           <Field label="Last four digits" hint="optional">
@@ -222,6 +230,8 @@ export function AccountForm({ editing }: { editing?: Account | null }) {
               placeholder="1188"
               keyboardType="number-pad"
               maxLength={4}
+              returnKeyType="done"
+              onSubmitEditing={() => void handleSave()}
             />
           </Field>
         </>
@@ -235,6 +245,8 @@ export function AccountForm({ editing }: { editing?: Account | null }) {
             placeholder="4821"
             keyboardType="number-pad"
             maxLength={4}
+            returnKeyType="done"
+            onSubmitEditing={() => void handleSave()}
           />
         </Field>
       ) : null}

@@ -41,7 +41,13 @@ const TYPES: { value: TransactionType; label: string; icon: React.ReactNode }[] 
   },
 ];
 
-export function TransactionForm({ editing }: { editing?: Transaction | null }) {
+export function TransactionForm({
+  editing,
+  defaultAccountId,
+}: {
+  editing?: Transaction | null;
+  defaultAccountId?: string;
+}) {
   const router = useRouter();
   const { accounts, categories, addTransaction, updateTransaction, deleteTransaction } =
     useData();
@@ -61,9 +67,12 @@ export function TransactionForm({ editing }: { editing?: Transaction | null }) {
 
   const initialAccountId =
     editing?.accountId ??
-    (active.some((account) => account.id === selectedAccountId)
-      ? selectedAccountId
-      : active[0]?.id ?? "");
+    (defaultAccountId &&
+    active.some((account) => account.id === defaultAccountId)
+      ? defaultAccountId
+      : active.some((account) => account.id === selectedAccountId)
+        ? selectedAccountId
+        : active[0]?.id ?? "");
   const initialCurrency = active.find((account) => account.id === initialAccountId)?.currency;
 
   const [type, setType] = useState<TransactionType>(editing?.type ?? "expense");
@@ -308,6 +317,8 @@ export function TransactionForm({ editing }: { editing?: Transaction | null }) {
             onChangeText={setAmount}
             placeholder="0.00"
             keyboardType="decimal-pad"
+            returnKeyType="done"
+            onSubmitEditing={() => void handleSave()}
             style={styles.amountInput}
             autoFocus={!editing}
           />
@@ -396,6 +407,8 @@ export function TransactionForm({ editing }: { editing?: Transaction | null }) {
                 : "e.g. Carrefour"
           }
           autoCapitalize="sentences"
+          returnKeyType="done"
+          onSubmitEditing={() => void handleSave()}
         />
       </Field>
 

@@ -35,7 +35,6 @@ import {
 import { useAccountSelection } from "@/contexts/account-selection";
 import { useData } from "@/contexts/data";
 import { useToast } from "@/contexts/toast";
-import { AccountSwitcher } from "@/components/account-switcher";
 import { MonthPicker } from "@/components/month-picker";
 import { TransactionRow } from "@/components/transaction-row";
 import { Badge } from "@/components/ui/badge";
@@ -47,6 +46,8 @@ import { Sheet } from "@/components/ui/sheet";
 import { colors, font, radius } from "@/lib/theme";
 
 type TypeFilter = "all" | TransactionType;
+
+const TRANSACTIONS_PAGE_SIZE = 20;
 
 const TYPE_FILTERS: { value: TypeFilter; label: string }[] = [
   { value: "all", label: "All" },
@@ -67,6 +68,10 @@ export default function TransactionsScreen() {
   const [categoryId, setCategoryId] = useState("");
   const [categoryOpen, setCategoryOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [page, setPage] = useState({
+    key: "",
+    count: TRANSACTIONS_PAGE_SIZE,
+  });
 
   // Deleted categories can leave a stale filter behind in this mounted tab.
   // Treat it as "all" rather than emptying the ledger.
@@ -110,38 +115,41 @@ export default function TransactionsScreen() {
     });
   }, [monthTransactions, typeFilter, activeCategoryId, query, categories]);
 
-  function openActions(id: string, title: string) {
-    Alert.alert(title, "What would you like to do?", [
-      { text: "Edit", onPress: () => router.push(`/transaction/${id}`) },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: () =>
-          Alert.alert(
-            "Delete transaction?",
-            "This entry will be removed from your ledger. It cannot be undone.",
-            [
-              { text: "Keep it", style: "cancel" },
-              {
-                text: "Delete",
-                style: "destructive",
-                onPress: async () => {
-                  try {
-                    await deleteTransaction(id);
-                    showToast("Transaction deleted");
-                  } catch (caught) {
-                    showToast(
-                      caught instanceof Error ? caught.message : "Could not delete transaction.",
-                      "error",
-                    );
-                  }
-                },
-              },
-            ],
-          ),
-      },
-      { text: "Cancel", style: "cancel" },
-    ]);
+  const listKey = [
+    month,
+    selectedAccount?.id ?? "",
+    query.trim().toLowerCase(),
+    typeFilter,
+    activeCategoryId,
+  ].join(":");
+  const visibleCount =
+    page.key === listKey ? page.count : TRANSACTIONS_PAGE_SIZE;
+  const visibleTransactions = filtered.slice(0, visibleCount);
+  const hasMore = filtered.length > visibleCount;
+
+  function confirmDelete(id: string, title: string) {
+    Alert.alert(
+      "Delete transaction?",
+      `“${title}” will be removed from your ledger. It cannot be undone.`,
+      [
+        { text: "Keep it", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await deleteTransaction(id);
+              showToast("Transaction deleted");
+            } catch (caught) {
+              showToast(
+                caught instanceof Error ? caught.message : "Could not delete transaction.",
+                "error",
+              );
+            }
+          },
+        },
+      ],
+    );
   }
 
   function handleRefresh() {
@@ -156,19 +164,10 @@ export default function TransactionsScreen() {
         eyebrow="Activity"
         title="Transactions"
         description="Every entry that touches this account, including both sides of a transfer."
-        actions={
-          <Button
-            label="Add"
-            size="sm"
-            icon={<Plus color={colors.white} size={15} />}
-            onPress={() => router.push("/transaction/new")}
-          />
-        }
       />
       <View style={styles.toolbar}>
         <MonthPicker month={month} onChange={setMonth} />
       </View>
-      <AccountSwitcher fullWidth />
 
       {selectedAccount ? (
         <>
@@ -278,7 +277,7 @@ export default function TransactionsScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
       <FlatList
-        data={selectedAccount ? filtered : []}
+        data={selectedAccount ? visibleTransactions : []}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
           <View style={styles.rowWrap}>
@@ -290,8 +289,10 @@ export default function TransactionsScreen() {
                 (account) => account.id === item.transferAccountId,
               )}
               perspectiveAccountId={selectedAccount?.id}
-              onPress={() => router.push(`/transaction/${item.id}`)}
-              onActions={() => openActions(item.id, item.merchant || "Transaction")}
+              onEdit={() => router.push(`/transaction/${item.id}`)}
+              onDelete={() =>
+                confirmDelete(item.id, item.merchant || "Transaction")
+              }
             />
           </View>
         )}
@@ -320,7 +321,29 @@ export default function TransactionsScreen() {
             />
           </View>
         }
-        ListFooterComponent={<View style={{ height: insets.bottom + 24 }} />}
+        ListFooterComponent={
+          <View style={{ paddingBottom: insets.bottom + 24 }}>
+            {hasMore ? (
+              <View style={styles.loadMore}>
+                <Text style={styles.loadMoreText}>
+                  Showing {visibleTransactions.length} of {filtered.length} matching
+                  entries
+                </Text>
+                <Button
+                  label="Load more"
+                  variant="secondary"
+                  size="sm"
+                  onPress={() =>
+                    setPage({
+                      key: listKey,
+                      count: visibleCount + TRANSACTIONS_PAGE_SIZE,
+                    })
+                  }
+                />
+              </View>
+            ) : null}
+          </View>
+        }
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
@@ -478,6 +501,19 @@ const styles = StyleSheet.create({
   },
   listTitle: { fontFamily: font.semibold, fontSize: 14, color: colors.ink },
   rowWrap: { borderBottomWidth: 1, borderBottomColor: colors.lineSoft },
+  loadMore: {
+    alignItems: "center",
+    gap: 10,
+    borderTopWidth: 1,
+    borderTopColor: colors.lineSoft,
+    paddingTop: 16,
+  },
+  loadMoreText: {
+    fontFamily: font.regular,
+    fontSize: 10,
+    color: colors.subtle,
+    textAlign: "center",
+  },
   emptyWrap: { paddingTop: 14 },
   categoryList: { gap: 7, paddingBottom: 8 },
   categoryOption: {

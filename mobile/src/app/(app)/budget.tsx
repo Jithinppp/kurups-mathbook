@@ -232,6 +232,8 @@ export default function BudgetScreen() {
             onChangeText={setAmount}
             placeholder="0.00"
             keyboardType="decimal-pad"
+            returnKeyType="done"
+            onSubmitEditing={() => void handleSave()}
             style={styles.amountInput}
           />
         </View>
