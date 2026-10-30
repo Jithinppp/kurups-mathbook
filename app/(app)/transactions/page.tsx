@@ -38,7 +38,7 @@ import { cn } from "@/lib/utils";
 
 type TypeFilter = "all" | TransactionType;
 
-const TRANSACTIONS_PAGE_SIZE = 25;
+const TRANSACTIONS_PAGE_SIZE = 20;
 
 export default function TransactionsPage() {
   const { accounts, categories, transactions, deleteTransaction, ready } =
