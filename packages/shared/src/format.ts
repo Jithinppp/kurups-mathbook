@@ -2,13 +2,28 @@ export function localeForCurrency(currency: string) {
   return currency === "INR" ? "en-IN" : "en-AE";
 }
 
+const numberFormatters = new Map<string, Intl.NumberFormat>();
+
+function getNumberFormatter(
+  locale: string,
+  options: Intl.NumberFormatOptions,
+): Intl.NumberFormat {
+  const key = `${locale}|${JSON.stringify(options)}`;
+  let formatter = numberFormatters.get(key);
+  if (!formatter) {
+    formatter = new Intl.NumberFormat(locale, options);
+    numberFormatters.set(key, formatter);
+  }
+  return formatter;
+}
+
 export function formatMoney(
   value: number,
   currency: string,
   options: { compact?: boolean; decimals?: boolean } = {},
 ) {
   const { compact = false, decimals = true } = options;
-  const formatter = new Intl.NumberFormat(localeForCurrency(currency), {
+  const formatter = getNumberFormatter(localeForCurrency(currency), {
     style: "currency",
     currency,
     currencyDisplay: "code",
@@ -20,17 +35,19 @@ export function formatMoney(
 }
 
 export function formatNumber(value: number, decimals = 2) {
-  return new Intl.NumberFormat("en-AE", {
+  const formatter = getNumberFormatter("en-AE", {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
-  }).format(value);
+  });
+  return formatter.format(value);
 }
 
 export function formatCompactNumber(value: number, currency: string) {
-  return new Intl.NumberFormat(localeForCurrency(currency), {
+  const formatter = getNumberFormatter(localeForCurrency(currency), {
     notation: "compact",
     maximumFractionDigits: 1,
-  }).format(Math.abs(value));
+  });
+  return formatter.format(Math.abs(value));
 }
 
 const CURRENCY_SYMBOLS: Record<string, string> = {
@@ -44,25 +61,35 @@ const CURRENCY_SYMBOLS: Record<string, string> = {
   KES: "KSh",
 };
 
+const currencySymbolCache = new Map<string, string>();
+
 /**
  * A compact currency label for tight mobile layouts. Falls back to the
  * three-letter code when the locale does not expose a distinct symbol.
  */
 export function currencySymbol(currency: string) {
   const code = currency.toUpperCase();
+  const cached = currencySymbolCache.get(code);
+  if (cached) return cached;
+
   const custom = CURRENCY_SYMBOLS[code];
-  if (custom) return custom;
+  if (custom) {
+    currencySymbolCache.set(code, custom);
+    return custom;
+  }
 
   try {
-    const symbol = new Intl.NumberFormat(localeForCurrency(code), {
+    const formatter = getNumberFormatter(localeForCurrency(code), {
       style: "currency",
       currency: code,
       currencyDisplay: "narrowSymbol",
-    })
-      .formatToParts(0)
-      .find((part) => part.type === "currency")?.value;
-    return symbol || code;
+    });
+    const symbol = formatter.formatToParts(0).find((part) => part.type === "currency")?.value;
+    const result = symbol || code;
+    currencySymbolCache.set(code, result);
+    return result;
   } catch {
+    currencySymbolCache.set(code, code);
     return code;
   }
 }
@@ -73,9 +100,10 @@ export function formatSignedMoney(value: number, currency: string) {
 }
 
 export function formatPercent(value: number, decimals = 0) {
-  return `${new Intl.NumberFormat("en-AE", {
+  const formatter = getNumberFormatter("en-AE", {
     maximumFractionDigits: decimals,
-  }).format(value)}%`;
+  });
+  return `${formatter.format(value)}%`;
 }
 
 export function formatCompact(value: number, currency: string) {

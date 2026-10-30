@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { memo, useCallback, useMemo, useState } from "react";
 import {
   Pressable,
   RefreshControl,
@@ -66,6 +66,18 @@ export default function OverviewScreen() {
   const { activeAccounts, selectedAccount, setSelectedAccountId } = useAccountSelection();
   const [month, setMonth] = useState(currentMonthKey());
   const [refreshing, setRefreshing] = useState(false);
+  const selectAccount = useCallback(
+    (id: string) => {
+      setSelectedAccountId(id);
+    },
+    [setSelectedAccountId],
+  );
+  const addTransactionFor = useCallback(
+    (id: string) => {
+      router.push(`/transaction/new?accountId=${encodeURIComponent(id)}`);
+    },
+    [router],
+  );
 
   const accountTransactions = useMemo(
     () => (selectedAccount ? transactionsForAccount(transactions, selectedAccount.id) : []),
@@ -243,17 +255,13 @@ export default function OverviewScreen() {
 
                 <View style={styles.accountList}>
                   {activeAccounts.map((account) => (
-                    <OverviewAccountRow
+                    <MemoizedOverviewAccountRow
                       key={account.id}
                       account={account}
                       balance={monthBalanceByAccount.get(account.id) ?? account.balance}
                       selected={account.id === selectedAccount.id}
-                      onSelect={() => setSelectedAccountId(account.id)}
-                      onAddTransaction={() =>
-                        router.push(
-                          `/transaction/new?accountId=${encodeURIComponent(account.id)}`,
-                        )
-                      }
+                      onSelect={selectAccount}
+                      onAddTransaction={addTransactionFor}
                     />
                   ))}
                 </View>
@@ -514,8 +522,8 @@ function OverviewAccountRow({
   account: AccountWithBalance;
   balance: number;
   selected: boolean;
-  onSelect: () => void;
-  onAddTransaction: () => void;
+  onSelect: (accountId: string) => void;
+  onAddTransaction: (accountId: string) => void;
 }) {
   const display = accountDisplayBalance(account, balance);
   const caption = accountBalanceCaption(account, balance);
@@ -527,7 +535,7 @@ function OverviewAccountRow({
         accessibilityRole="button"
         accessibilityLabel={`Select ${account.name}`}
         accessibilityState={{ selected }}
-        onPress={onSelect}
+        onPress={() => onSelect(account.id)}
         style={styles.accountTop}
       >
         <View style={styles.accountIcon}>
@@ -567,7 +575,7 @@ function OverviewAccountRow({
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={`Add transaction for ${account.name}`}
-          onPress={onAddTransaction}
+          onPress={() => onAddTransaction(account.id)}
           style={({ pressed }) => [styles.addTransaction, pressed && { opacity: 0.8 }]}
         >
           <Plus color={colors.white} size={12} />
@@ -578,6 +586,19 @@ function OverviewAccountRow({
       </View>
     </View>
   );
+}
+
+const MemoizedOverviewAccountRow = memo(OverviewAccountRow);
+
+const shortNumberFormatters = new Map<string, Intl.NumberFormat>();
+
+function formatShortNumber(value: number, locale: string) {
+  let formatter = shortNumberFormatters.get(locale);
+  if (!formatter) {
+    formatter = new Intl.NumberFormat(locale, { maximumFractionDigits: 0 });
+    shortNumberFormatters.set(locale, formatter);
+  }
+  return formatter.format(Math.abs(value));
 }
 
 function relativeLuminance(hex: string) {
@@ -598,14 +619,12 @@ function formatMoneyShort(value: number, currency: string) {
   const formatted =
     Math.abs(value) >= 1_000_000
       ? formatCompactNumber(value, currency)
-      : new Intl.NumberFormat(currency === "INR" ? "en-IN" : "en-AE", {
-          maximumFractionDigits: 0,
-        }).format(Math.abs(value));
+      : formatShortNumber(Math.abs(value), currency === "INR" ? "en-IN" : "en-AE");
   return `${currencySymbol(currency)} ${formatted}`;
 }
 
 function formatNumberShort(value: number) {
-  return new Intl.NumberFormat("en-AE", { maximumFractionDigits: 0 }).format(value);
+  return formatShortNumber(value, "en-AE");
 }
 
 const styles = StyleSheet.create({
