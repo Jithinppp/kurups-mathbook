@@ -152,7 +152,13 @@ function BudgetDialogContent({
           : `Plan ${currency} spending for this account in ${formatMonth(month)}.`
       }
     >
-      <div className="space-y-5">
+      <form
+        className="space-y-5"
+        onSubmit={(event) => {
+          event.preventDefault();
+          void handleSave();
+        }}
+      >
         <Field label="Category">
           <Select
             value={categoryId}
@@ -268,12 +274,12 @@ function BudgetDialogContent({
             >
               Cancel
             </Button>
-            <Button type="button" onClick={handleSave} loading={saving}>
+            <Button type="submit" loading={saving}>
               Save budget
             </Button>
           </div>
         </div>
-      </div>
+      </form>
     </Dialog>
   );
 }

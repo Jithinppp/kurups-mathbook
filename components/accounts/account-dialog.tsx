@@ -165,7 +165,13 @@ function AccountDialogContent({
           : "Add a bank account, cash source or credit card."
       }
     >
-      <div className="space-y-5">
+      <form
+        className="space-y-5"
+        onSubmit={(event) => {
+          event.preventDefault();
+          void handleSave();
+        }}
+      >
         <div className="grid grid-cols-3 gap-1 rounded-xl bg-[rgba(148,151,169,0.1)] p-1">
           {TYPES.map((option) => (
             <button
@@ -343,12 +349,12 @@ function AccountDialogContent({
             >
               Cancel
             </Button>
-            <Button type="button" onClick={handleSave} loading={saving}>
+            <Button type="submit" loading={saving}>
               {editing ? "Save changes" : "Add account"}
             </Button>
           </div>
         </div>
-      </div>
+      </form>
     </Dialog>
   );
 }

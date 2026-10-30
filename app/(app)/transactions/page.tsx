@@ -38,6 +38,8 @@ import { cn } from "@/lib/utils";
 
 type TypeFilter = "all" | TransactionType;
 
+const TRANSACTIONS_PAGE_SIZE = 25;
+
 export default function TransactionsPage() {
   const { accounts, categories, transactions, deleteTransaction, ready } =
     useData();
@@ -47,6 +49,10 @@ export default function TransactionsPage() {
   const [query, setQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
+  const [page, setPage] = useState({
+    key: "",
+    count: TRANSACTIONS_PAGE_SIZE,
+  });
 
   const currency = selectedAccount?.currency ?? "AED";
   const accountMap = useMemo(
@@ -120,6 +126,17 @@ export default function TransactionsPage() {
 
   const activeFilters =
     typeFilter !== "all" || effectiveCategoryFilter !== "all";
+  const listKey = [
+    month,
+    selectedAccount?.id ?? "",
+    query.trim().toLowerCase(),
+    typeFilter,
+    effectiveCategoryFilter,
+  ].join(":");
+  const visibleCount =
+    page.key === listKey ? page.count : TRANSACTIONS_PAGE_SIZE;
+  const visibleTransactions = filtered.slice(0, visibleCount);
+  const hasMore = filtered.length > visibleCount;
 
   if (!ready) return null;
 
@@ -293,29 +310,52 @@ export default function TransactionsPage() {
           <span />
         </div>
         {filtered.length > 0 ? (
-          <div className="divide-y divide-line-soft">
-            {filtered.map((transaction) => (
-              <TransactionRow
-                key={transaction.id}
-                transaction={transaction}
-                account={accountMap.get(transaction.accountId)}
-                category={
-                  transaction.categoryId
-                    ? categoryMap.get(transaction.categoryId)
-                    : undefined
-                }
-                transferAccount={
-                  transaction.transferAccountId
-                    ? accountMap.get(transaction.transferAccountId)
-                    : undefined
-                }
-                onClick={() => openTransaction(transaction)}
-                onEdit={() => openTransaction(transaction)}
-                onDelete={() => deleteTransaction(transaction.id)}
-                perspectiveAccountId={selectedAccount.id}
-              />
-            ))}
-          </div>
+          <>
+            <div className="divide-y divide-line-soft">
+              {visibleTransactions.map((transaction) => (
+                <TransactionRow
+                  key={transaction.id}
+                  transaction={transaction}
+                  account={accountMap.get(transaction.accountId)}
+                  category={
+                    transaction.categoryId
+                      ? categoryMap.get(transaction.categoryId)
+                      : undefined
+                  }
+                  transferAccount={
+                    transaction.transferAccountId
+                      ? accountMap.get(transaction.transferAccountId)
+                      : undefined
+                  }
+                  onClick={() => openTransaction(transaction)}
+                  onEdit={() => openTransaction(transaction)}
+                  onDelete={() => deleteTransaction(transaction.id)}
+                  perspectiveAccountId={selectedAccount.id}
+                />
+              ))}
+            </div>
+            {hasMore ? (
+              <div className="flex flex-col items-center justify-between gap-3 border-t border-line-soft bg-canvas/30 px-5 py-4 sm:flex-row">
+                <p className="text-[11px] text-subtle">
+                  Showing {visibleTransactions.length} of {filtered.length}{" "}
+                  matching entries
+                </p>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() =>
+                    setPage({
+                      key: listKey,
+                      count: visibleCount + TRANSACTIONS_PAGE_SIZE,
+                    })
+                  }
+                >
+                  Load more
+                </Button>
+              </div>
+            ) : null}
+          </>
         ) : (
           <EmptyState
             icon={<Search className="size-5" />}

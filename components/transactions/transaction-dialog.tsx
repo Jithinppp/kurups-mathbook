@@ -8,7 +8,13 @@ import {
   Trash2,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useMemo, useState, type ReactNode } from "react";
+import {
+  useId,
+  useMemo,
+  useState,
+  type FormEvent,
+  type ReactNode,
+} from "react";
 import { toast } from "sonner";
 import { AppIcon } from "@/components/app-icon";
 import { Button } from "@/components/ui/button";
@@ -62,6 +68,7 @@ function TransactionDialogContent({
   defaultAccountId?: string;
 }) {
   const router = useRouter();
+  const formId = useId();
   const {
     accounts,
     categories,
@@ -256,6 +263,11 @@ function TransactionDialogContent({
     }
   }
 
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    void handleSave();
+  }
+
   async function handleDelete() {
     if (!editing) return;
     setSaving(true);
@@ -337,7 +349,7 @@ function TransactionDialogContent({
                 >
                   Cancel
                 </Button>
-                <Button type="button" onClick={handleSave} loading={saving}>
+                <Button type="submit" form={formId} loading={saving}>
                   {editing
                     ? "Save changes"
                     : `Save ${type === "transfer" ? "transfer" : "transaction"}`}
@@ -348,27 +360,30 @@ function TransactionDialogContent({
         )
       }
     >
-      {active.length === 0 ? (
-        <div className="space-y-4 py-4 text-center">
-          <div className="mx-auto flex size-12 items-center justify-center rounded-2xl bg-brand-soft text-brand">
-            <AppIcon name="credit-card" className="size-5" />
+      <form id={formId} onSubmit={handleSubmit}>
+        {active.length === 0 ? (
+          <div className="space-y-4 py-4 text-center">
+            <div className="mx-auto flex size-12 items-center justify-center rounded-2xl bg-brand-soft text-brand">
+              <AppIcon name="credit-card" className="size-5" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold">Add an account first</p>
+              <p className="mt-1 text-xs text-muted">
+                Every transaction needs a bank account, cash source or credit
+                card.
+              </p>
+            </div>
+            <Button
+              type="button"
+              onClick={() => {
+                onOpenChange(false);
+                router.push("/accounts");
+              }}
+            >
+              Add an account
+            </Button>
           </div>
-          <div>
-            <p className="text-sm font-semibold">Add an account first</p>
-            <p className="mt-1 text-xs text-muted">
-              Every transaction needs a bank account, cash source or credit card.
-            </p>
-          </div>
-          <Button
-            onClick={() => {
-              onOpenChange(false);
-              router.push("/accounts");
-            }}
-          >
-            Add an account
-          </Button>
-        </div>
-      ) : (
+        ) : (
         <div className="space-y-5">
           <div className="grid grid-cols-3 gap-1 rounded-xl bg-[rgba(148,151,169,0.1)] p-1">
             {TYPES.map((option) => (
@@ -558,7 +573,8 @@ function TransactionDialogContent({
             </div>
           ) : null}
         </div>
-      )}
+        )}
+      </form>
     </Dialog>
   );
 }

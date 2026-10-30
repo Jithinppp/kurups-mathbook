@@ -136,7 +136,13 @@ function CategoryDialogContent({
           : "Create a category that fits the way you actually spend."
       }
     >
-      <div className="space-y-5">
+      <form
+        className="space-y-5"
+        onSubmit={(event) => {
+          event.preventDefault();
+          void handleSave();
+        }}
+      >
         <Field label="Name">
           <Input
             value={name}
@@ -192,11 +198,11 @@ function CategoryDialogContent({
           <Button type="button" variant="secondary" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button type="button" onClick={handleSave} loading={saving}>
+          <Button type="submit" loading={saving}>
             {editing ? "Save changes" : "Add category"}
           </Button>
         </div>
-      </div>
+      </form>
     </Dialog>
   );
 }
