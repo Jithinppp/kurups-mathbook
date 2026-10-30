@@ -34,17 +34,20 @@ export function TransactionDialog({
   open,
   onOpenChange,
   editing,
+  defaultAccountId,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   editing?: Transaction | null;
+  defaultAccountId?: string;
 }) {
   if (!open) return null;
   return (
     <TransactionDialogContent
-      key={editing?.id ?? "new"}
+      key={`${editing?.id ?? "new"}:${defaultAccountId ?? ""}`}
       onOpenChange={onOpenChange}
       editing={editing}
+      defaultAccountId={defaultAccountId}
     />
   );
 }
@@ -52,9 +55,11 @@ export function TransactionDialog({
 function TransactionDialogContent({
   onOpenChange,
   editing,
+  defaultAccountId,
 }: {
   onOpenChange: (open: boolean) => void;
   editing?: Transaction | null;
+  defaultAccountId?: string;
 }) {
   const router = useRouter();
   const {
@@ -78,9 +83,12 @@ function TransactionDialogContent({
 
   const initialAccountId =
     editing?.accountId ??
-    (active.some((account) => account.id === selectedAccountId)
-      ? selectedAccountId
-      : active[0]?.id ?? "");
+    (defaultAccountId &&
+    active.some((account) => account.id === defaultAccountId)
+      ? defaultAccountId
+      : active.some((account) => account.id === selectedAccountId)
+        ? selectedAccountId
+        : active[0]?.id ?? "");
   const initialCurrency = active.find(
     (account) => account.id === initialAccountId,
   )?.currency;

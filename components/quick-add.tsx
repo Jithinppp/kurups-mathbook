@@ -5,7 +5,10 @@ import { TransactionDialog } from "@/components/transactions/transaction-dialog"
 import type { Transaction } from "@/lib/types";
 
 interface QuickAddContextValue {
-  openTransaction: (transaction?: Transaction | null) => void;
+  openTransaction: (
+    transaction?: Transaction | null,
+    options?: { accountId?: string },
+  ) => void;
 }
 
 const QuickAddContext = createContext<QuickAddContextValue | null>(null);
@@ -13,11 +16,16 @@ const QuickAddContext = createContext<QuickAddContextValue | null>(null);
 export function QuickAddProvider({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Transaction | null>(null);
+  const [defaultAccountId, setDefaultAccountId] = useState<string | undefined>();
 
   const value = useMemo(
     () => ({
-      openTransaction: (transaction?: Transaction | null) => {
+      openTransaction: (
+        transaction?: Transaction | null,
+        options?: { accountId?: string },
+      ) => {
         setEditing(transaction ?? null);
+        setDefaultAccountId(options?.accountId);
         setOpen(true);
       },
     }),
@@ -31,6 +39,7 @@ export function QuickAddProvider({ children }: { children: ReactNode }) {
         open={open}
         onOpenChange={setOpen}
         editing={editing}
+        defaultAccountId={defaultAccountId}
       />
     </QuickAddContext.Provider>
   );

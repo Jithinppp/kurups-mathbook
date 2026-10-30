@@ -30,8 +30,8 @@ import { useData } from "@/lib/data-context";
 import { addMonths, currentMonthKey, formatMonth } from "@/lib/dates";
 import {
   accountBalanceAt,
+  accountBalanceCaption,
   accountDisplayBalance,
-  accountOpeningBalanceAt,
   budgetRows,
   monthlyTrend,
   overspentCategories,
@@ -41,6 +41,7 @@ import {
   transactionsForAccount,
   transactionsForAccountMonth,
 } from "@/lib/finance";
+import { ACCOUNT_TYPE_LABEL } from "@/lib/constants";
 import { formatMoney, formatPercent } from "@/lib/format";
 import type { AccountWithBalance } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -115,9 +116,16 @@ export default function DashboardPage() {
   const closingBalance = selectedAccount
     ? accountBalanceAt(selectedAccount, transactions, month)
     : 0;
-  const openingBalance = selectedAccount
-    ? accountOpeningBalanceAt(selectedAccount, transactions, month)
-    : 0;
+  const monthBalanceByAccount = useMemo(
+    () =>
+      new Map(
+        activeAccounts.map((account) => [
+          account.id,
+          accountBalanceAt(account, transactions, month),
+        ]),
+      ),
+    [activeAccounts, transactions, month],
+  );
 
   const segments = useMemo<DonutSegment[]>(() => {
     const items = Array.from(categorySpend.entries())
@@ -183,19 +191,11 @@ export default function DashboardPage() {
   if (!selectedAccount) return null;
 
   const closingDisplay = accountDisplayBalance(selectedAccount, closingBalance);
-  const openingDisplay = accountDisplayBalance(selectedAccount, openingBalance);
   const isCard = selectedAccount.type === "credit_card";
   const balanceLabel = isCard
     ? closingBalance > 0
       ? "Credit balance"
       : "Card owed"
-    : closingBalance < 0
-      ? "Overdrawn"
-      : "Closing balance";
-  const heroBalanceLabel = isCard
-    ? closingBalance > 0
-      ? "Credit balance"
-      : "Outstanding"
     : closingBalance < 0
       ? "Overdrawn"
       : "Closing balance";
@@ -217,13 +217,6 @@ export default function DashboardPage() {
           <>
             <MonthPicker value={month} onChange={setMonth} />
             <AccountSwitcher />
-            <Button
-              onClick={() => openTransaction()}
-              className="hidden sm:inline-flex"
-            >
-              <Plus className="size-4" />
-              Add transaction
-            </Button>
           </>
         }
       />
@@ -239,111 +232,52 @@ export default function DashboardPage() {
         />
         <div className="pointer-events-none absolute -right-24 -top-32 size-[420px] rounded-full border border-white/10" />
         <div className="pointer-events-none absolute -right-8 -top-16 size-[240px] rounded-full border border-white/10" />
-        <div className="relative grid gap-7 lg:grid-cols-[1.35fr_0.9fr] lg:items-end">
-          <div>
-            <div className="flex flex-wrap items-start justify-between gap-2">
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/65">
-                  Selected account
-                </p>
-                <p className="mt-1 text-[11px] text-white/50">
-                  One card or bank at a time. Switch from the selector above or
-                  the cards below.
-                </p>
-              </div>
-              <span className="rounded-md bg-white/15 px-1.5 py-0.5 text-[10px] font-semibold">
-                {selectedAccount.currency}
-              </span>
+        <div className="relative">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/65">
+                All accounts
+              </p>
+              <p className="mt-1 max-w-lg text-[11px] leading-relaxed text-white/50">
+                Balances at the end of {monthLabel}. Pick an account to focus
+                the page, or add an entry directly to any account.
+              </p>
             </div>
-
-            <div className="mt-4 flex items-center gap-3">
-              <span className="flex size-11 items-center justify-center rounded-xl bg-white/15">
-                <AppIcon name={selectedAccount.icon} className="size-5" />
-              </span>
-              <div className="min-w-0">
-                <p className="truncate text-[18px] font-semibold tracking-[-0.02em]">
-                  {selectedAccount.name}
-                </p>
-                <p className="truncate text-[10px] text-white/55">
-                  {selectedAccount.type === "cash"
-                    ? selectedAccount.institution || "Cash"
-                    : selectedAccount.institution ||
-                      (isCard ? "Credit card" : "Bank account")}
-                  {selectedAccount.lastFour
-                    ? ` · •••• ${selectedAccount.lastFour}`
-                    : ""}
-                </p>
-              </div>
-            </div>
-
-            <p className="mt-6 text-[10px] font-semibold uppercase tracking-[0.12em] text-white/55">
-              {heroBalanceLabel} · {monthLabel}
-            </p>
-            <p className="mt-1 text-[34px] font-semibold leading-none tracking-[-0.045em] sm:text-[40px]">
-              <Money
-                value={closingDisplay}
-                currency={selectedAccount.currency}
-                codeClassName="text-white/55"
-                display="symbol"
-                compact
-                compactFrom={1_000_000_000}
-              />
-            </p>
-            <p className="mt-2 text-[10px] leading-relaxed text-white/55">
-              Opened at {formatMoney(openingDisplay, currency, { compact: true })} · closing
-              balance carries into {nextMonthLabel}
-            </p>
-
-            <div className="mt-5 flex flex-wrap items-center gap-1.5 sm:gap-2">
-              <Button
-                variant="white"
-                onClick={() => openTransaction()}
-                className="bg-white px-3.5 text-brand hover:bg-white/90 sm:px-4"
-              >
-                <Plus className="size-4" />
-                Add transaction
-              </Button>
-              <Link
-                href="/transactions"
-                className="inline-flex h-11 items-center gap-1.5 rounded-xl border border-white/20 px-3 text-sm font-medium text-white transition hover:bg-white/10 sm:px-4"
-              >
-                View transactions
-                <ChevronRight className="size-4" />
-              </Link>
-            </div>
+            <span className="rounded-md bg-white/15 px-1.5 py-0.5 text-[10px] font-semibold">
+              {activeAccounts.length} active
+            </span>
           </div>
 
-          <div className="rounded-2xl border border-white/15 bg-white/10 p-3 backdrop-blur-sm lg:p-4">
-            <div className="mb-2 flex items-center justify-between gap-2">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-white/55">
-                This month
-              </p>
-              <span className="rounded-md bg-white/15 px-1.5 py-0.5 text-[10px] font-semibold">
-                {selectedAccount.currency}
-              </span>
-            </div>
-            <div className="grid grid-cols-3 gap-2 lg:grid-cols-1 lg:gap-0">
-              <HeroStat
-                label="In this month"
-                shortLabel="In"
-                value={summary.income}
-                currency={currency}
+          <div className="mt-4 space-y-2">
+            {activeAccounts.map((account) => (
+              <OverviewAccountRow
+                key={account.id}
+                account={account}
+                balance={monthBalanceByAccount.get(account.id) ?? account.balance}
+                selected={account.id === selectedAccount.id}
+                onSelect={() => setSelectedAccountId(account.id)}
+                onAddTransaction={() =>
+                  openTransaction(null, { accountId: account.id })
+                }
               />
-              <HeroStat
-                label="Out this month"
-                shortLabel="Out"
-                value={summary.expenses}
-                currency={currency}
-              />
-              <HeroStat
-                label="Kept this month"
-                shortLabel="Kept"
-                value={summary.net}
-                currency={currency}
-                last
-                positive={summary.net >= 0}
-              />
-            </div>
+            ))}
+          </div>
+
+          <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
+            <Link
+              href="/transactions"
+              className="inline-flex items-center gap-1 text-[11px] font-medium text-white/65 transition hover:text-white"
+            >
+              View transactions
+              <ChevronRight className="size-3.5" />
+            </Link>
+            <Link
+              href="/accounts"
+              className="inline-flex items-center gap-1 text-[11px] font-medium text-white/65 transition hover:text-white"
+            >
+              Manage accounts
+              <ChevronRight className="size-3.5" />
+            </Link>
           </div>
         </div>
       </section>
@@ -406,47 +340,6 @@ export default function DashboardPage() {
           tone={closingBalance < 0 ? "danger" : "neutral"}
         />
       </div>
-
-      <section>
-        <div className="mb-3 flex items-center justify-between gap-3">
-          <div>
-            <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-ink">
-              Your accounts
-            </h2>
-            <p className="mt-0.5 text-xs text-muted">
-              {activeAccounts.length} active account
-              {activeAccounts.length === 1 ? "" : "s"}. Select one to focus the
-              month; balances carry forward.
-            </p>
-          </div>
-          <Link
-            href="/accounts"
-            className="inline-flex items-center gap-1 text-xs font-medium text-brand hover:text-brand-dark"
-          >
-            Manage
-            <ChevronRight className="size-3.5" />
-          </Link>
-        </div>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 2xl:grid-cols-6">
-          {activeAccounts.map((account) => (
-            <AccountMiniCard
-              key={account.id}
-              account={account}
-              selected={account.id === selectedAccount.id}
-              onSelect={() => setSelectedAccountId(account.id)}
-            />
-          ))}
-          <Link
-            href="/accounts"
-            className="flex min-h-[118px] flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-line bg-white/55 p-4 text-center text-xs font-medium text-subtle transition hover:border-brand/30 hover:bg-brand-soft/40 hover:text-brand"
-          >
-            <span className="flex size-8 items-center justify-center rounded-full bg-white shadow-[0_1px_4px_rgba(16,24,40,0.08)]">
-              <Plus className="size-4" />
-            </span>
-            Add account
-          </Link>
-        </div>
-      </section>
 
       <div className="grid gap-4 lg:grid-cols-[1.35fr_0.9fr]">
         <Card>
@@ -706,51 +599,6 @@ export default function DashboardPage() {
   );
 }
 
-function HeroStat({
-  label,
-  shortLabel,
-  value,
-  currency,
-  last = false,
-  positive,
-}: {
-  label: string;
-  shortLabel?: string;
-  value: number;
-  currency: string;
-  last?: boolean;
-  positive?: boolean;
-}) {
-  return (
-    <div
-      className={cn(
-        "px-1 py-1 lg:flex lg:items-center lg:justify-between lg:gap-4 lg:px-0 lg:py-3",
-        !last &&
-          "border-r border-white/15 pr-1.5 lg:border-r-0 lg:border-b lg:pr-0",
-      )}
-    >
-      <span className="block text-[10px] font-medium uppercase tracking-[0.1em] text-white/60 lg:normal-case lg:tracking-normal lg:text-[11px]">
-        <span className="lg:hidden">{shortLabel ?? label}</span>
-        <span className="hidden lg:inline">{label}</span>
-      </span>
-      <span
-        className={cn(
-          "mt-1 block text-[13px] font-semibold sm:text-sm lg:mt-0",
-          positive === false ? "text-[#ffd4cc]" : "text-white",
-        )}
-      >
-        <Money
-          value={value}
-          currency={currency}
-          codeClassName="text-white/55"
-          display="symbol"
-          compact
-        />
-      </span>
-    </div>
-  );
-}
-
 function StatCard({
   label,
   value,
@@ -799,65 +647,89 @@ function StatCard({
   );
 }
 
-function AccountMiniCard({
+function OverviewAccountRow({
   account,
+  balance,
   selected,
   onSelect,
+  onAddTransaction,
 }: {
   account: AccountWithBalance;
+  balance: number;
   selected: boolean;
   onSelect: () => void;
+  onAddTransaction: () => void;
 }) {
-  const isCard = account.type === "credit_card";
-  const display = accountDisplayBalance(account, account.balance);
+  const display = accountDisplayBalance(account, balance);
+  const caption = accountBalanceCaption(account, balance);
+  const kind = ACCOUNT_TYPE_LABEL[account.type] ?? "Account";
+
   return (
-    <button
-      type="button"
-      onClick={onSelect}
-      aria-pressed={selected}
-      data-testid="account-mini-card"
+    <div
+      data-testid="overview-account-row"
       data-account-id={account.id}
       className={cn(
-        "group flex min-h-[118px] flex-col justify-between rounded-2xl border bg-white p-4 text-left shadow-[0_4px_24px_rgba(0,0,0,0.02)] transition hover:-translate-y-0.5 hover:border-line focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/15",
+        "flex flex-col gap-2 rounded-xl border px-3 py-2.5 transition sm:flex-row sm:items-center sm:gap-3",
         selected
-          ? "border-brand/35 ring-2 ring-brand/10"
-          : "border-line-soft",
+          ? "border-white/25 bg-white/15"
+          : "border-white/10 bg-white/[0.06] hover:bg-white/10",
       )}
     >
-      <div className="flex items-start justify-between gap-2">
-        <span
-          className="flex size-9 items-center justify-center rounded-xl"
-          style={{ backgroundColor: `${account.color}14`, color: account.color }}
-        >
+      <button
+        type="button"
+        onClick={onSelect}
+        aria-pressed={selected}
+        aria-label={`Select ${account.name}`}
+        className="flex min-w-0 flex-1 items-center gap-2.5 rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+      >
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-white/15">
           <AppIcon name={account.icon} className="size-4" />
         </span>
-        {selected ? (
-          <span className="rounded-md bg-brand-soft px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-[0.08em] text-brand">
-            Selected
+        <span className="min-w-0">
+          <span className="flex items-center gap-2">
+            <span className="truncate text-[13px] font-semibold text-white">
+              {account.name}
+            </span>
+            {selected ? (
+              <span className="shrink-0 rounded bg-white/15 px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-[0.08em] text-white/80">
+                Selected
+              </span>
+            ) : null}
           </span>
-        ) : isCard ? (
-          <span className="text-[9px] font-semibold uppercase tracking-[0.1em] text-subtle">
-            Due
+          <span className="mt-0.5 block truncate text-[10px] text-white/55">
+            {kind} · {account.currency}
+            {account.institution ? ` · ${account.institution}` : ""}
+            {account.lastFour ? ` · •••• ${account.lastFour}` : ""}
           </span>
-        ) : null}
-      </div>
-      <div>
-        <p className="truncate text-[11px] font-medium text-muted">{account.name}</p>
-        <p
-          className={cn(
-            "mt-0.5 text-[15px] font-semibold tracking-[-0.02em]",
-            isCard ? "text-ink" : account.balance < 0 ? "text-danger" : "text-ink",
-          )}
+        </span>
+      </button>
+
+      <div className="flex items-center justify-between gap-3 sm:justify-end">
+        <div className="text-right">
+          <p className="text-[9px] font-medium uppercase tracking-[0.1em] text-white/45">
+            {caption}
+          </p>
+          <p className="mt-0.5 text-[15px] font-semibold tracking-[-0.02em] text-white">
+            <Money
+              value={display}
+              currency={account.currency}
+              display="symbol"
+              compact
+              codeClassName="text-white/55"
+            />
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onAddTransaction}
+          aria-label={`Add transaction for ${account.name}`}
+          className="inline-flex h-8 shrink-0 items-center gap-1 whitespace-nowrap rounded-lg border border-white/20 px-2.5 text-[10px] font-semibold text-white transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
         >
-          <Money
-            value={display}
-            currency={account.currency}
-            display="symbol"
-            compact
-          />
-        </p>
+          <Plus className="size-3.5" />
+          Add transaction
+        </button>
       </div>
-    </button>
+    </div>
   );
 }
 
