@@ -28,7 +28,7 @@ export function DonutChart({
     <View style={styles.root}>
       <View style={styles.chart}>
         <Svg width={140} height={140} viewBox="0 0 140 140">
-          <G rotation="-90" origin="70,70">
+          <G transform="rotate(-90 70 70)">
             <Circle
               cx="70"
               cy="70"
