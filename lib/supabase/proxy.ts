@@ -29,6 +29,25 @@ function redirectWithCookies(
 }
 
 /**
+ * Older recovery templates appended `&token_hash=...` to the callback URL even
+ * when it had no query string. The browser treats that as part of the path
+ * (`/auth/callback&token_hash=...`) and Next.js returns 404. Repair those links
+ * so emails already in an inbox still work after this fix is deployed.
+ */
+function redirectMalformedAuthPath(request: NextRequest) {
+  const match = request.nextUrl.pathname.match(/^\/auth\/(callback|confirm)&(.+)$/);
+  if (!match) return null;
+
+  const [, route, rawQuery] = match;
+  const params = new URLSearchParams(rawQuery);
+  request.nextUrl.searchParams.forEach((value, key) => params.set(key, value));
+
+  const target = new URL(`/auth/${route}`, request.url);
+  params.forEach((value, key) => target.searchParams.set(key, value));
+  return NextResponse.redirect(target);
+}
+
+/**
  * Supabase falls back to the configured Site URL when a redirect URL is not
  * allow-listed. In that case the auth token can land on the site root. Forward
  * those requests to the callback so a misconfigured allow list does not turn a
@@ -53,6 +72,9 @@ function redirectAuthParams(request: NextRequest) {
 }
 
 export async function updateSession(request: NextRequest) {
+  const malformedAuthRedirect = redirectMalformedAuthPath(request);
+  if (malformedAuthRedirect) return malformedAuthRedirect;
+
   const authRedirect = redirectAuthParams(request);
   if (authRedirect) return authRedirect;
 
