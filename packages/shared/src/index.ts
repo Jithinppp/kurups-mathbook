@@ -4,6 +4,7 @@ export * from "./constants";
 export * from "./color";
 export * from "./format";
 export * from "./finance";
+export * from "./statement";
 export * from "./demo-data";
 export * from "./utils";
 export * from "./supabase/mappers";

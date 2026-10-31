@@ -5,6 +5,7 @@ import {
   ArrowUpRight,
   ChevronRight,
   CreditCard,
+  Download,
   Plus,
   Sparkles,
   TriangleAlert,
@@ -18,6 +19,7 @@ import { MonthlyBars } from "@/components/charts/monthly-bars";
 import { Money } from "@/components/money";
 import { MonthPicker } from "@/components/month-picker";
 import { PageHeader } from "@/components/page-header";
+import { StatementDialog } from "@/components/statements/statement-dialog";
 import { TransactionRow } from "@/components/transactions/transaction-row";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -53,6 +55,7 @@ export default function DashboardPage() {
     useAccountSelection();
   const { openTransaction } = useQuickAdd();
   const [month, setMonth] = useState(currentMonthKey());
+  const [statementOpen, setStatementOpen] = useState(false);
 
   const accountId = selectedAccount?.id ?? "";
   const currency = selectedAccount?.currency ?? "AED";
@@ -216,7 +219,19 @@ export default function DashboardPage() {
         eyebrow="Your money"
         title={`Welcome back, ${firstName}`}
         description={`A clear view of ${selectedAccount.name} in ${monthLabel}. Only this account's activity counts here, and its balance carries into ${nextMonthLabel}.`}
-        actions={<MonthPicker value={month} onChange={setMonth} />}
+        actions={
+          <>
+            <MonthPicker value={month} onChange={setMonth} />
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setStatementOpen(true)}
+            >
+              <Download className="size-3.5" />
+              Statement
+            </Button>
+          </>
+        }
       />
 
       <section
@@ -603,6 +618,12 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      <StatementDialog
+        open={statementOpen}
+        onOpenChange={setStatementOpen}
+        month={month}
+      />
     </div>
   );
 }

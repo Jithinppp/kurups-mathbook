@@ -14,6 +14,7 @@ import { useRouter } from "expo-router";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   ChevronDown,
+  Download,
   Plus,
   ReceiptText,
   Search,
@@ -36,6 +37,7 @@ import { useAccountSelection } from "@/contexts/account-selection";
 import { useData } from "@/contexts/data";
 import { useToast } from "@/contexts/toast";
 import { MonthPicker } from "@/components/month-picker";
+import { StatementSheet } from "@/components/statement-sheet";
 import { TransactionRow } from "@/components/transaction-row";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -63,6 +65,7 @@ export default function TransactionsScreen() {
   const { activeAccounts, selectedAccount } = useAccountSelection();
   const { showToast } = useToast();
   const [month, setMonth] = useState(currentMonthKey());
+  const [statementOpen, setStatementOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
   const [categoryId, setCategoryId] = useState("");
@@ -167,6 +170,13 @@ export default function TransactionsScreen() {
       />
       <View style={styles.toolbar}>
         <MonthPicker month={month} onChange={setMonth} />
+        <Button
+          label="Statement"
+          variant="secondary"
+          size="sm"
+          icon={<Download color={colors.ink} size={13} />}
+          onPress={() => setStatementOpen(true)}
+        />
       </View>
 
       {selectedAccount ? (
@@ -406,6 +416,12 @@ export default function TransactionsScreen() {
           })}
         </View>
       </Sheet>
+
+      <StatementSheet
+        visible={statementOpen}
+        onClose={() => setStatementOpen(false)}
+        month={month}
+      />
     </SafeAreaView>
   );
 }

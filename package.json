@@ -16,16 +16,19 @@
     "dev:all": "concurrently -n web,mobile -c blue,magenta \"npm run dev\" \"npm run mobile\""
   },
   "dependencies": {
+    "@asharibook/shared": "*",
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.118.0",
     "clsx": "^2.1.1",
+    "jspdf": "^4.2.1",
+    "jspdf-autotable": "^5.0.9",
     "lucide-react": "^1.60.0",
     "next": "16.4.2",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "sonner": "^2.0.8",
     "tailwind-merge": "^3.7.0",
-    "@asharibook/shared": "*"
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@tailwindcss/turbopack": "^4",

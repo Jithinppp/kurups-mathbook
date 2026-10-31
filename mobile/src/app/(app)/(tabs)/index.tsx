@@ -15,6 +15,7 @@ import {
   ArrowUpRight,
   ChevronRight,
   CreditCard,
+  Download,
   Plus,
   ReceiptText,
   TrendingUp,
@@ -48,6 +49,7 @@ import { AppIcon } from "@/components/ui/app-icon";
 import { DonutChart } from "@/components/charts/donut-chart";
 import { MonthlyBars } from "@/components/charts/monthly-bars";
 import { MonthPicker } from "@/components/month-picker";
+import { StatementSheet } from "@/components/statement-sheet";
 import { TransactionRow } from "@/components/transaction-row";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -65,6 +67,7 @@ export default function OverviewScreen() {
   const { profile, categories, transactions, budgets, ready, error, refresh } = useData();
   const { activeAccounts, selectedAccount, setSelectedAccountId } = useAccountSelection();
   const [month, setMonth] = useState(currentMonthKey());
+  const [statementOpen, setStatementOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const selectAccount = useCallback(
     (id: string) => {
@@ -203,6 +206,13 @@ export default function OverviewScreen() {
 
         <View style={styles.toolbar}>
           <MonthPicker month={month} onChange={setMonth} />
+          <Button
+            label="Statement"
+            variant="secondary"
+            size="sm"
+            icon={<Download color={colors.ink} size={13} />}
+            onPress={() => setStatementOpen(true)}
+          />
         </View>
 
         {error ? (
@@ -470,6 +480,11 @@ export default function OverviewScreen() {
           </View>
         ) : null}
       </ScrollView>
+      <StatementSheet
+        visible={statementOpen}
+        onClose={() => setStatementOpen(false)}
+        month={month}
+      />
     </SafeAreaView>
   );
 }

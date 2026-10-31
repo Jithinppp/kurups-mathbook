@@ -5,6 +5,7 @@ import {
   ArrowLeftRight,
   ArrowUpRight,
   CreditCard,
+  Download,
   FilterX,
   Plus,
   Search,
@@ -16,6 +17,7 @@ import { Money } from "@/components/money";
 import { MonthPicker } from "@/components/month-picker";
 import { PageHeader } from "@/components/page-header";
 import { useQuickAdd } from "@/components/quick-add";
+import { StatementDialog } from "@/components/statements/statement-dialog";
 import { TransactionRow } from "@/components/transactions/transaction-row";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -46,6 +48,7 @@ export default function TransactionsPage() {
   const { selectedAccount } = useAccountSelection();
   const { openTransaction } = useQuickAdd();
   const [month, setMonth] = useState(currentMonthKey());
+  const [statementOpen, setStatementOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
@@ -185,7 +188,19 @@ export default function TransactionsPage() {
         description={`Every entry for ${selectedAccount.name} in ${formatMonth(
           month,
         )}. Only this account is shown; its balance carries forward.`}
-        actions={<MonthPicker value={month} onChange={setMonth} />}
+        actions={
+          <>
+            <MonthPicker value={month} onChange={setMonth} />
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setStatementOpen(true)}
+            >
+              <Download className="size-3.5" />
+              Statement
+            </Button>
+          </>
+        }
       />
 
       <div className="space-y-2">
@@ -413,6 +428,12 @@ export default function TransactionsPage() {
             : "No income"}
         </Badge>
       </div>
+
+      <StatementDialog
+        open={statementOpen}
+        onOpenChange={setStatementOpen}
+        month={month}
+      />
     </div>
   );
 }
