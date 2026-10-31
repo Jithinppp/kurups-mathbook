@@ -28,7 +28,34 @@ function redirectWithCookies(
   return redirect;
 }
 
+/**
+ * Supabase falls back to the configured Site URL when a redirect URL is not
+ * allow-listed. In that case the auth token can land on the site root. Forward
+ * those requests to the callback so a misconfigured allow list does not turn a
+ * recovery email into a blank or invalid page.
+ */
+function redirectAuthParams(request: NextRequest) {
+  const pathname = request.nextUrl.pathname;
+  if (pathname.startsWith(AUTH_PREFIX)) return null;
+
+  const params = request.nextUrl.searchParams;
+  if (
+    !params.has("token_hash") &&
+    !params.has("code") &&
+    !params.has("error_code")
+  ) {
+    return null;
+  }
+
+  const callback = new URL("/auth/callback", request.url);
+  params.forEach((value, key) => callback.searchParams.set(key, value));
+  return NextResponse.redirect(callback);
+}
+
 export async function updateSession(request: NextRequest) {
+  const authRedirect = redirectAuthParams(request);
+  if (authRedirect) return authRedirect;
+
   const pathname = request.nextUrl.pathname;
   const publicRoute = isPublic(pathname);
   const isDemo = request.cookies.get(DEMO_COOKIE)?.value === "1";

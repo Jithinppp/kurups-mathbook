@@ -61,9 +61,9 @@ Reset your AshariBook password
 
 Body: paste the contents of [`recovery.html`](./recovery.html).
 
-The recovery template assumes the app sends
-`.../auth/callback?next=/reset-password` as the redirect URL. The app does this
-automatically.
+Both templates use the same redirect URL (`.../auth/callback`). The
+`type=recovery` parameter tells the callback to open the reset-password screen,
+so the recovery link does not need a `next` query string.
 
 ## 3. Fix emails landing in spam
 

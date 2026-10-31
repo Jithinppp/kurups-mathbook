@@ -48,7 +48,7 @@
                 <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:26px 0 0;">
                   <tr>
                     <td style="border-radius:12px;background-color:#7132f5;">
-                      <a href="{{ .RedirectTo }}&amp;token_hash={{ .TokenHash }}&amp;type=recovery" style="display:inline-block;padding:14px 24px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:14px;font-weight:700;line-height:18px;color:#ffffff;text-decoration:none;border-radius:12px;">
+                      <a href="{{ .RedirectTo }}?token_hash={{ .TokenHash }}&amp;type=recovery" style="display:inline-block;padding:14px 24px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:14px;font-weight:700;line-height:18px;color:#ffffff;text-decoration:none;border-radius:12px;">
                         Reset password
                       </a>
                     </td>
@@ -60,8 +60,8 @@
                   doesn’t work, copy and paste the link below into your browser.
                 </p>
                 <p style="margin:8px 0 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:11px;line-height:18px;color:#7132f5;word-break:break-all;">
-                  <a href="{{ .RedirectTo }}&amp;token_hash={{ .TokenHash }}&amp;type=recovery" style="color:#7132f5;text-decoration:underline;">
-                    {{ .RedirectTo }}&amp;token_hash={{ .TokenHash }}&amp;type=recovery
+                  <a href="{{ .RedirectTo }}?token_hash={{ .TokenHash }}&amp;type=recovery" style="color:#7132f5;text-decoration:underline;">
+                    {{ .RedirectTo }}?token_hash={{ .TokenHash }}&amp;type=recovery
                   </a>
                 </p>
               </td>
