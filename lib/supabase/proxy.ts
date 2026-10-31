@@ -1,7 +1,8 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const PUBLIC_PATHS = ["/login", "/signup"];
+const PUBLIC_PATHS = ["/login", "/signup", "/forgot-password"];
+const ALWAYS_ALLOWED_PATHS = ["/reset-password"];
 const AUTH_PREFIX = "/auth";
 const DEMO_COOKIE = "asharibook-demo";
 
@@ -12,6 +13,7 @@ const configured = Boolean(url && anonKey);
 function isPublic(pathname: string) {
   return (
     PUBLIC_PATHS.some((path) => pathname === path) ||
+    ALWAYS_ALLOWED_PATHS.some((path) => pathname === path) ||
     pathname.startsWith(AUTH_PREFIX)
   );
 }

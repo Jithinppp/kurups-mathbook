@@ -41,17 +41,28 @@ Configuration:
 
 - `asharibook://auth/callback` for development and production builds
 - `exp://*/--/auth/callback` for Expo Go
+- `http://localhost:8081/auth/callback` for Expo web
 
-The `auth/callback` route exchanges the PKCE code and opens the workspace.
+The `auth/callback` route accepts either a PKCE `code` or a
+`token_hash` + `type`. It opens the workspace after confirmation, or sends the
+user to the reset-password screen for recovery links. The same callback route is
+used by the web app, so the email templates can stay platform-neutral.
+
+## Password reset
+
+The sign-in screen links to `forgot-password`, which sends a Supabase recovery
+email. The recovery link returns to `auth/callback`, verifies the token, and
+opens `reset-password`. Updating the password signs the user out so they can sign
+in again with the new password.
 
 ## Structure
 
 ```text
 src/app/          Expo Router routes
-  (auth)/         login and sign up
+  (auth)/         login, sign up, forgot password, reset password
   (app)/(tabs)/   Home, Activity, Budgets, Accounts
   (app)/          settings and transaction/budget/account modals
-  auth/callback   email confirmation callback
+  auth/callback   email confirmation and recovery callback
 src/components/   native UI, charts and forms
 src/contexts/     auth, data, selected account and toast providers
 src/lib/          Supabase client, storage keys and theme

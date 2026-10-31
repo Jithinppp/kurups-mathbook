@@ -21,7 +21,7 @@ import { useAuth } from "@/lib/auth-context";
 
 export default function SignupPage() {
   const router = useRouter();
-  const { signUp, enterDemo, configured } = useAuth();
+  const { signUp, enterDemo, resendConfirmation, configured } = useAuth();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -29,6 +29,8 @@ export default function SignupPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [sentTo, setSentTo] = useState<string | null>(null);
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendNotice, setResendNotice] = useState<string | null>(null);
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -70,6 +72,24 @@ export default function SignupPage() {
     router.refresh();
   }
 
+  async function handleResend() {
+    if (!sentTo) return;
+    setResendLoading(true);
+    setResendNotice(null);
+    try {
+      await resendConfirmation(sentTo);
+      setResendNotice(
+        "Confirmation email sent again. Check your inbox and spam folder.",
+      );
+    } catch (caught) {
+      setResendNotice(
+        caught instanceof Error ? caught.message : "Could not resend the email.",
+      );
+    } finally {
+      setResendLoading(false);
+    }
+  }
+
   if (sentTo) {
     return (
       <AuthShell>
@@ -84,6 +104,10 @@ export default function SignupPage() {
             We sent a confirmation link to <strong>{sentTo}</strong>. Open it to
             finish setting up your workspace.
           </p>
+          <p className="mx-auto mt-2 max-w-sm text-[10px] leading-relaxed text-subtle">
+            It can take a minute to arrive. If you don&apos;t see it, check your
+            spam or promotions folder.
+          </p>
           <Button
             className="mt-6 w-full"
             onClick={() => router.push("/login")}
@@ -91,6 +115,19 @@ export default function SignupPage() {
             Back to sign in
             <ArrowRight className="size-4" />
           </Button>
+          <Button
+            className="mt-2 w-full"
+            variant="secondary"
+            loading={resendLoading}
+            onClick={handleResend}
+          >
+            Resend confirmation email
+          </Button>
+          {resendNotice ? (
+            <p className="mt-3 text-[10px] leading-relaxed text-muted">
+              {resendNotice}
+            </p>
+          ) : null}
           <p className="mt-4 text-[10px] text-subtle">
             Once confirmed, your first sign in creates your personal categories
             and cash wallet automatically.

@@ -8,7 +8,7 @@ import {
   Text,
   View,
 } from "react-native";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { ArrowRight, LockKeyhole, Mail, Sparkles } from "lucide-react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -20,15 +20,29 @@ import { colors, font, radius } from "@/lib/theme";
 
 export default function LoginScreen() {
   const router = useRouter();
-  const { signIn, enterDemo, configured } = useAuth();
+  const params = useLocalSearchParams<{ reset?: string; error?: string }>();
+  const { signIn, enterDemo, resendConfirmation, configured } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [demoLoading, setDemoLoading] = useState(false);
+  const [canResend, setCanResend] = useState(false);
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendMessage, setResendMessage] = useState<string | null>(null);
+
+  const notice =
+    params.reset === "1"
+      ? "Password updated. Sign in with your new password."
+      : typeof params.error === "string"
+        ? authErrorMessage(params.error)
+        : null;
+  const noticeIsError = Boolean(params.error);
 
   async function handleSignIn() {
     setError(null);
+    setCanResend(false);
+    setResendMessage(null);
     if (!email.trim() || !password) {
       setError("Enter your email and password.");
       return;
@@ -37,9 +51,36 @@ export default function LoginScreen() {
     try {
       await signIn(email, password);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Could not sign in.");
+      const message =
+        caught instanceof Error ? caught.message : "Could not sign in.";
+      if (message.toLowerCase().includes("email not confirmed")) {
+        setCanResend(true);
+        setError("Confirm your email first, then sign in.");
+      } else if (message.toLowerCase().includes("invalid login")) {
+        setError("That email and password don't match.");
+      } else {
+        setError(message);
+      }
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleResend() {
+    if (!email.trim()) return;
+    setResendLoading(true);
+    setResendMessage(null);
+    try {
+      await resendConfirmation(email);
+      setResendMessage(
+        "Confirmation email sent. Check your inbox and spam folder.",
+      );
+    } catch (caught) {
+      setResendMessage(
+        caught instanceof Error ? caught.message : "Could not resend the email.",
+      );
+    } finally {
+      setResendLoading(false);
     }
   }
 
@@ -115,7 +156,34 @@ export default function LoginScreen() {
               </View>
             </Field>
 
+            <Pressable
+              onPress={() => router.push("/forgot-password")}
+              style={styles.forgot}
+            >
+              <Text style={styles.forgotText}>Forgot password?</Text>
+            </Pressable>
+
+            {notice ? (
+              <Text style={noticeIsError ? styles.error : styles.notice}>
+                {notice}
+              </Text>
+            ) : null}
+
             {error ? <Text style={styles.error}>{error}</Text> : null}
+            {canResend ? (
+              <View style={styles.resend}>
+                <Button
+                  label="Resend confirmation email"
+                  variant="secondary"
+                  size="sm"
+                  onPress={handleResend}
+                  loading={resendLoading}
+                />
+                {resendMessage ? (
+                  <Text style={styles.resendMessage}>{resendMessage}</Text>
+                ) : null}
+              </View>
+            ) : null}
 
             <Button
               label="Sign in"
@@ -223,6 +291,24 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.danger,
   },
+  notice: {
+    borderRadius: radius.md,
+    backgroundColor: colors.successSoft,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontFamily: font.medium,
+    fontSize: 12,
+    color: colors.success,
+  },
+  forgot: { alignSelf: "flex-end", marginTop: -6 },
+  forgotText: { fontFamily: font.medium, fontSize: 11, color: colors.brand },
+  resend: { gap: 7 },
+  resendMessage: {
+    fontFamily: font.regular,
+    fontSize: 10,
+    lineHeight: 15,
+    color: colors.muted,
+  },
   divider: { flexDirection: "row", alignItems: "center", gap: 10 },
   line: { flex: 1, height: 1, backgroundColor: colors.lineSoft },
   dividerText: { fontFamily: font.regular, fontSize: 10, color: colors.subtle },
@@ -237,3 +323,20 @@ const styles = StyleSheet.create({
   footerText: { fontFamily: font.regular, fontSize: 12, color: colors.muted },
   footerLink: { fontFamily: font.semibold, color: colors.brand },
 });
+
+function authErrorMessage(code: string) {
+  switch (code) {
+    case "expired":
+      return "That email link has expired or was already used. Request a new one.";
+    case "access_denied":
+      return "That email link was cancelled or has already been used.";
+    case "recovery":
+      return "That password reset link is invalid or has expired.";
+    case "confirmation":
+      return "We couldn't confirm that email link. Request a new email.";
+    case "auth_callback":
+      return "We couldn't complete that sign-in link. It may have expired.";
+    default:
+      return "We couldn't complete that sign-in link. Please try again.";
+  }
+}

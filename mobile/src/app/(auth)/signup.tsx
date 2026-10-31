@@ -20,19 +20,21 @@ import { colors, font, radius } from "@/lib/theme";
 
 export default function SignupScreen() {
   const router = useRouter();
-  const { signUp, configured } = useAuth();
+  const { signUp, resendConfirmation, configured } = useAuth();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [confirmation, setConfirmation] = useState(false);
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendMessage, setResendMessage] = useState<string | null>(null);
 
   async function handleSignUp() {
     setError(null);
     if (!name.trim()) return setError("Enter your name.");
     if (!email.trim()) return setError("Enter your email.");
-    if (password.length < 6) return setError("Use at least 6 characters for your password.");
+    if (password.length < 8) return setError("Use at least 8 characters for your password.");
     setLoading(true);
     try {
       const result = await signUp(name, email, password);
@@ -41,6 +43,24 @@ export default function SignupScreen() {
       setError(caught instanceof Error ? caught.message : "Could not create your account.");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleResend() {
+    if (!email.trim()) return;
+    setResendLoading(true);
+    setResendMessage(null);
+    try {
+      await resendConfirmation(email);
+      setResendMessage(
+        "Confirmation email sent again. Check your inbox and spam folder.",
+      );
+    } catch (caught) {
+      setResendMessage(
+        caught instanceof Error ? caught.message : "Could not resend the email.",
+      );
+    } finally {
+      setResendLoading(false);
     }
   }
 
@@ -53,9 +73,22 @@ export default function SignupScreen() {
           </View>
           <Text style={styles.confirmTitle}>Check your email</Text>
           <Text style={styles.confirmText}>
-            We sent a confirmation link to {email}. Open it on this device to
-            finish creating your AshariBook workspace.
+            We sent a confirmation link to {email}. Open it to finish creating
+            your AshariBook workspace.
           </Text>
+          <Text style={styles.confirmHint}>
+            It can take a minute to arrive. If you don&apos;t see it, check your
+            spam or promotions folder.
+          </Text>
+          <Button
+            label="Resend confirmation email"
+            variant="secondary"
+            onPress={handleResend}
+            loading={resendLoading}
+          />
+          {resendMessage ? (
+            <Text style={styles.confirmHint}>{resendMessage}</Text>
+          ) : null}
           <Button label="Back to sign in" onPress={() => router.replace("/login")} />
         </View>
       </SafeAreaView>
@@ -100,7 +133,7 @@ export default function SignupScreen() {
                 keyboardType="email-address"
               />
             </Field>
-            <Field label="Password" hint="6+ characters">
+            <Field label="Password" hint="8+ characters">
               <Input
                 value={password}
                 onChangeText={setPassword}
@@ -199,6 +232,12 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     color: colors.muted,
     textAlign: "center",
-    marginBottom: 8,
+  },
+  confirmHint: {
+    fontFamily: font.regular,
+    fontSize: 10,
+    lineHeight: 15,
+    color: colors.subtle,
+    textAlign: "center",
   },
 });

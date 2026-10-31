@@ -9,6 +9,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { getAuthCallbackUrl } from "./auth-redirect";
 import { getSupabaseBrowserClient, isSupabaseConfigured } from "./supabase/client";
 import type { AppUser } from "./types";
 
@@ -22,7 +23,10 @@ interface AuthContextValue {
     email: string,
     password: string,
   ) => Promise<{ needsConfirmation: boolean }>;
-  signOut: () => Promise<void>;
+  requestPasswordReset: (email: string) => Promise<void>;
+  updatePassword: (password: string) => Promise<void>;
+  resendConfirmation: (email: string) => Promise<void>;
+  signOut: (options?: { redirectTo?: string }) => Promise<void>;
   enterDemo: () => void;
 }
 
@@ -150,10 +154,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         password,
         options: {
           data: { full_name: name },
-          emailRedirectTo:
-            typeof window !== "undefined"
-              ? `${window.location.origin}/auth/callback`
-              : undefined,
+          emailRedirectTo: getAuthCallbackUrl(),
         },
       });
       if (error) throw new Error(error.message);
@@ -163,18 +164,48 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [],
   );
 
-  const signOut = useCallback(async () => {
+  const requestPasswordReset = useCallback(async (email: string) => {
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase) throw new Error("Supabase is not configured.");
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+      redirectTo: getAuthCallbackUrl("/reset-password"),
+    });
+    if (error) throw new Error(error.message);
+  }, []);
+
+  const updatePassword = useCallback(async (password: string) => {
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase) throw new Error("Supabase is not configured.");
+    const { error } = await supabase.auth.updateUser({ password });
+    if (error) throw new Error(error.message);
+  }, []);
+
+  const resendConfirmation = useCallback(async (email: string) => {
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase) throw new Error("Supabase is not configured.");
+    const { error } = await supabase.auth.resend({
+      type: "signup",
+      email: email.trim(),
+      options: { emailRedirectTo: getAuthCallbackUrl() },
+    });
+    if (error) throw new Error(error.message);
+  }, []);
+
+  const signOut = useCallback(async (options?: { redirectTo?: string }) => {
     setDemoCookie(false);
     if (typeof window !== "undefined") {
       window.localStorage.removeItem(DEMO_USER_KEY);
     }
     const supabase = getSupabaseBrowserClient();
     if (supabase) {
-      await supabase.auth.signOut();
+      await supabase.auth.signOut().catch(() => undefined);
     }
     setUser(null);
     // A full reload clears any preserved auth-page state and stale errors.
-    window.location.replace(`${window.location.origin}/login`);
+    const redirectTo = options?.redirectTo?.startsWith("/")
+      ? options.redirectTo
+      : "/login";
+    window.location.replace(`${window.location.origin}${redirectTo}`);
   }, []);
 
   const enterDemo = useCallback(() => {
@@ -193,10 +224,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       configured,
       signIn,
       signUp,
+      requestPasswordReset,
+      updatePassword,
+      resendConfirmation,
       signOut,
       enterDemo,
     }),
-    [user, loading, configured, signIn, signUp, signOut, enterDemo],
+    [
+      user,
+      loading,
+      configured,
+      signIn,
+      signUp,
+      requestPasswordReset,
+      updatePassword,
+      resendConfirmation,
+      signOut,
+      enterDemo,
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

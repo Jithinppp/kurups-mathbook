@@ -13,6 +13,9 @@ export default function AuthCallbackScreen() {
     code?: string;
     token_hash?: string;
     type?: string;
+    next?: string;
+    error?: string;
+    error_code?: string;
     error_description?: string;
   }>();
   const [error, setError] = useState<string | null>(null);
@@ -21,14 +24,22 @@ export default function AuthCallbackScreen() {
     let active = true;
 
     async function finish() {
-      if (params.error_description) {
-        setError(params.error_description);
+      if (params.error_description || params.error || params.error_code) {
+        setError(
+          params.error_description ||
+            (params.error_code === "otp_expired"
+              ? "This email link has expired. Request a new one and try again."
+              : "This email link could not be verified."),
+        );
         return;
       }
       if (!supabase) {
         setError("Supabase is not configured in this build.");
         return;
       }
+
+      const destination =
+        params.type === "recovery" ? "/reset-password" : safeNextPath(params.next);
 
       try {
         if (params.code) {
@@ -49,7 +60,7 @@ export default function AuthCallbackScreen() {
             return;
           }
         }
-        if (active) router.replace("/");
+        if (active) router.replace(destination);
       } catch (caught) {
         if (active) {
           setError(
@@ -65,7 +76,15 @@ export default function AuthCallbackScreen() {
     return () => {
       active = false;
     };
-  }, [params.code, params.error_description, params.token_hash, params.type]);
+  }, [
+    params.code,
+    params.error,
+    params.error_code,
+    params.error_description,
+    params.next,
+    params.token_hash,
+    params.type,
+  ]);
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -87,6 +106,18 @@ export default function AuthCallbackScreen() {
       </View>
     </SafeAreaView>
   );
+}
+
+function safeNextPath(value: string | undefined) {
+  if (
+    !value ||
+    !value.startsWith("/") ||
+    value.startsWith("//") ||
+    value.includes("\\")
+  ) {
+    return "/";
+  }
+  return value;
 }
 
 const styles = StyleSheet.create({

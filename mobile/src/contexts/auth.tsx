@@ -31,6 +31,9 @@ interface AuthContextValue {
     email: string,
     password: string,
   ) => Promise<{ needsConfirmation: boolean }>;
+  requestPasswordReset: (email: string) => Promise<void>;
+  updatePassword: (password: string) => Promise<void>;
+  resendConfirmation: (email: string) => Promise<void>;
   signOut: () => Promise<void>;
   enterDemo: () => Promise<void>;
 }
@@ -142,6 +145,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [],
   );
 
+  const requestPasswordReset = useCallback(async (email: string) => {
+    if (!supabase) throw new Error("Supabase is not configured.");
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+      redirectTo: Linking.createURL("auth/callback", {
+        queryParams: { next: "/reset-password" },
+      }),
+    });
+    if (error) throw new Error(error.message);
+  }, []);
+
+  const updatePassword = useCallback(async (password: string) => {
+    if (!supabase) throw new Error("Supabase is not configured.");
+    const { error } = await supabase.auth.updateUser({ password });
+    if (error) throw new Error(error.message);
+  }, []);
+
+  const resendConfirmation = useCallback(async (email: string) => {
+    if (!supabase) throw new Error("Supabase is not configured.");
+    const { error } = await supabase.auth.resend({
+      type: "signup",
+      email: email.trim(),
+      options: { emailRedirectTo: Linking.createURL("auth/callback") },
+    });
+    if (error) throw new Error(error.message);
+  }, []);
+
   const signOut = useCallback(async () => {
     demoActive.current = false;
     await clearDemoUser();
@@ -170,10 +199,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       configured: isSupabaseConfigured,
       signIn,
       signUp,
+      requestPasswordReset,
+      updatePassword,
+      resendConfirmation,
       signOut,
       enterDemo,
     }),
-    [user, loading, signIn, signUp, signOut, enterDemo],
+    [
+      user,
+      loading,
+      signIn,
+      signUp,
+      requestPasswordReset,
+      updatePassword,
+      resendConfirmation,
+      signOut,
+      enterDemo,
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

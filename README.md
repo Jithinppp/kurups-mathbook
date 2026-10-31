@@ -95,8 +95,14 @@ scheme.
    2. [`202610220001_account_scoped_budgets.sql`](supabase/migrations/202610220001_account_scoped_budgets.sql)
 3. In **Authentication → URL Configuration**, set:
    - Site URL: `http://localhost:3000` (or your deployed URL)
-   - Redirect URLs: `http://localhost:3000/auth/callback` and
-     `http://localhost:3000/auth/confirm`
+   - Redirect URLs:
+     - `http://localhost:3000/auth/callback`
+     - `http://localhost:3000/auth/confirm`
+     - `https://your-domain.com/auth/callback`
+     - `https://your-domain.com/auth/confirm`
+     - `asharibook://auth/callback`
+     - `exp://*/--/auth/callback`
+     - `http://localhost:8081/auth/callback` for Expo web
 4. Copy `.env.example` to `.env.local` and fill in the project values:
 
 ```bash
@@ -107,10 +113,21 @@ NEXT_PUBLIC_SITE_URL=http://localhost:3000
 
 5. Restart `npm run dev`. The login screen now uses real email authentication.
 
-Supabase's default email confirmation flow works with both `/auth/callback`
-(PKCE code exchange) and `/auth/confirm` (token hash). Once a user confirms and
-signs in, the database trigger creates their profile, a Cash account and the
-starter categories automatically.
+The confirmation and password-reset flows use `/auth/callback` and
+`/auth/confirm`. Both routes accept either a PKCE `code` or a
+`token_hash` + `type`, so links work whether they are opened in the same browser
+or on another device. Users can request a reset from **Forgot password?** on the
+sign-in screen.
+
+The branded email templates live in
+[`supabase/email-templates/`](supabase/email-templates/README.md), along with the
+SMTP, SPF, DKIM, and DMARC checklist needed to keep confirmation and reset
+emails out of spam. Set `NEXT_PUBLIC_SITE_URL` to the deployed HTTPS origin
+before sending production emails; otherwise a signup started on localhost will
+produce a localhost link.
+
+Once a user confirms and signs in, the database trigger creates their profile, a
+Cash account and the starter categories automatically.
 
 ## Schema
 

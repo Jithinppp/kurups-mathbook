@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light" />
+    <meta name="supported-color-schemes" content="light" />
+    <title>Confirm your AshariBook email</title>
+  </head>
+  <body style="margin:0;padding:0;background-color:#f7f7fa;color:#101114;">
+    <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">
+      Confirm your email to finish setting up your AshariBook workspace.
+    </div>
+
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color:#f7f7fa;">
+      <tr>
+        <td align="center" style="padding:36px 16px;">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:560px;">
+            <tr>
+              <td style="padding:0 4px 18px;">
+                <table role="presentation" cellspacing="0" cellpadding="0" border="0">
+                  <tr>
+                    <td style="width:38px;height:38px;border-radius:11px;background-color:#7132f5;color:#ffffff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:20px;font-weight:700;text-align:center;line-height:38px;">
+                      A
+                    </td>
+                    <td style="padding-left:10px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:17px;font-weight:700;letter-spacing:-0.3px;color:#101114;">
+                      AshariBook
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+
+            <tr>
+              <td style="border-radius:20px;background-color:#ffffff;border:1px solid #ececf2;padding:34px 30px;">
+                <p style="margin:0 0 10px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;color:#7132f5;">
+                  One last step
+                </p>
+                <h1 style="margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:28px;line-height:34px;letter-spacing:-1px;font-weight:700;color:#101114;">
+                  Confirm your email
+                </h1>
+                <p style="margin:14px 0 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:14px;line-height:22px;color:#686b82;">
+                  Hi there, thanks for creating an AshariBook account. Confirm
+                  <strong style="color:#101114;">{{ .Email }}</strong> to finish
+                  setting up your workspace.
+                </p>
+
+                <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:26px 0 0;">
+                  <tr>
+                    <td style="border-radius:12px;background-color:#7132f5;">
+                      <a href="{{ .RedirectTo }}?token_hash={{ .TokenHash }}&amp;type=email" style="display:inline-block;padding:14px 24px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:14px;font-weight:700;line-height:18px;color:#ffffff;text-decoration:none;border-radius:12px;">
+                        Confirm email address
+                      </a>
+                    </td>
+                  </tr>
+                </table>
+
+                <p style="margin:22px 0 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:12px;line-height:19px;color:#9497a9;">
+                  This link expires soon and can only be used once. If the button
+                  doesn’t work, copy and paste the link below into your browser.
+                </p>
+                <p style="margin:8px 0 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:11px;line-height:18px;color:#7132f5;word-break:break-all;">
+                  <a href="{{ .RedirectTo }}?token_hash={{ .TokenHash }}&amp;type=email" style="color:#7132f5;text-decoration:underline;">
+                    {{ .RedirectTo }}?token_hash={{ .TokenHash }}&amp;type=email
+                  </a>
+                </p>
+              </td>
+            </tr>
+
+            <tr>
+              <td style="padding:20px 8px 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:11px;line-height:18px;color:#9497a9;text-align:center;">
+                You received this email because someone created an AshariBook
+                account with {{ .Email }}. If that wasn’t you, you can safely
+                ignore this message.
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:16px 8px 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:10px;line-height:16px;color:#b0b2c0;text-align:center;">
+                AshariBook · Personal finance, without the spreadsheet
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>

@@ -7,27 +7,79 @@ import {
   EyeOff,
   Lock,
   Mail,
+  MailCheck,
   Sparkles,
 } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useState } from "react";
 import { AuthShell } from "@/components/auth/auth-shell";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth-context";
 
+type Notice = { tone: "error" | "success"; message: string };
+
 export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <AuthShell>
+          <div className="text-center text-[13px] text-muted">
+            Loading sign in…
+          </div>
+        </AuthShell>
+      }
+    >
+      <LoginForm />
+    </Suspense>
+  );
+}
+
+function LoginForm() {
   const router = useRouter();
-  const { signIn, enterDemo, configured } = useAuth();
+  const searchParams = useSearchParams();
+  const { signIn, enterDemo, resendConfirmation, configured } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [noticeDismissed, setNoticeDismissed] = useState(false);
+  const [canResend, setCanResend] = useState(false);
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendNotice, setResendNotice] = useState<string | null>(null);
+
+  const errorCode = searchParams.get("error");
+  const reset = searchParams.get("reset");
+  const confirmed = searchParams.get("confirmed");
+  const nextParam = searchParams.get("next");
+  const nextPath =
+    nextParam?.startsWith("/") &&
+    !nextParam.startsWith("//") &&
+    !nextParam.includes("\\")
+      ? nextParam
+      : "/";
+  const derivedNotice: Notice | null = errorCode
+    ? { tone: "error", message: authErrorMessage(errorCode) }
+    : reset
+      ? {
+          tone: "success",
+          message: "Password updated. Sign in with your new password.",
+        }
+      : confirmed
+        ? {
+            tone: "success",
+            message: "Email confirmed. Sign in to continue.",
+          }
+        : null;
+  const notice = noticeDismissed ? null : derivedNotice;
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     setError(null);
+    setNoticeDismissed(true);
+    setCanResend(false);
+    setResendNotice(null);
     if (!configured) {
       setError(
         "Supabase isn't connected yet. Use the demo workspace or add your project keys.",
@@ -37,11 +89,14 @@ export default function LoginPage() {
     setLoading(true);
     try {
       await signIn(email, password);
-      router.push("/");
+      router.push(nextPath);
       router.refresh();
     } catch (signInError) {
       const message =
         signInError instanceof Error ? signInError.message : "Could not sign in.";
+      if (message.toLowerCase().includes("email not confirmed")) {
+        setCanResend(true);
+      }
       setError(
         message.toLowerCase().includes("invalid login")
           ? "That email and password don't match."
@@ -51,6 +106,24 @@ export default function LoginPage() {
       );
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleResend() {
+    if (!email.trim()) return;
+    setResendLoading(true);
+    setResendNotice(null);
+    try {
+      await resendConfirmation(email);
+      setResendNotice(
+        "Confirmation email sent. Check your inbox and spam folder.",
+      );
+    } catch (caught) {
+      setResendNotice(
+        caught instanceof Error ? caught.message : "Could not resend the email.",
+      );
+    } finally {
+      setResendLoading(false);
     }
   }
 
@@ -72,6 +145,23 @@ export default function LoginPage() {
         <p className="mt-2 text-[13px] leading-relaxed text-muted">
           Pick up where the month left off.
         </p>
+
+        {notice ? (
+          <div
+            className={
+              notice.tone === "error"
+                ? "mt-5 flex items-start gap-2 rounded-xl bg-danger-soft px-3 py-2.5 text-xs text-danger"
+                : "mt-5 flex items-start gap-2 rounded-xl bg-success-soft px-3 py-2.5 text-xs text-success-dark"
+            }
+          >
+            {notice.tone === "error" ? (
+              <AlertCircle className="mt-0.5 size-3.5 shrink-0" />
+            ) : (
+              <MailCheck className="mt-0.5 size-3.5 shrink-0" />
+            )}
+            {notice.message}
+          </div>
+        ) : null}
 
         {!configured ? (
           <div className="mt-6 rounded-2xl border border-brand/15 bg-brand-soft/70 p-4">
@@ -121,7 +211,12 @@ export default function LoginPage() {
               <label htmlFor="password" className="text-[13px] font-medium text-ink">
                 Password
               </label>
-              <span className="text-[10px] text-subtle">At least 8 characters</span>
+              <Link
+                href="/forgot-password"
+                className="text-[10px] font-medium text-brand transition hover:text-brand-dark"
+              >
+                Forgot password?
+              </Link>
             </div>
             <div className="relative">
               <Lock className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-subtle" />
@@ -151,9 +246,30 @@ export default function LoginPage() {
           </div>
 
           {error ? (
-            <div className="flex items-start gap-2 rounded-xl bg-danger-soft px-3 py-2.5 text-xs text-danger">
-              <AlertCircle className="mt-0.5 size-3.5 shrink-0" />
-              {error}
+            <div className="rounded-xl bg-danger-soft px-3 py-2.5 text-xs text-danger">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="mt-0.5 size-3.5 shrink-0" />
+                {error}
+              </div>
+              {canResend ? (
+                <div className="mt-2 border-t border-danger/10 pt-2">
+                  <button
+                    type="button"
+                    onClick={handleResend}
+                    disabled={resendLoading}
+                    className="text-[11px] font-semibold text-danger underline-offset-2 transition hover:underline disabled:opacity-60"
+                  >
+                    {resendLoading
+                      ? "Sending confirmation email…"
+                      : "Resend confirmation email"}
+                  </button>
+                  {resendNotice ? (
+                    <p className="mt-1 text-[10px] leading-relaxed text-danger/80">
+                      {resendNotice}
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
           ) : null}
 
@@ -199,4 +315,21 @@ export default function LoginPage() {
       </div>
     </AuthShell>
   );
+}
+
+function authErrorMessage(code: string) {
+  switch (code) {
+    case "expired":
+      return "That email link has expired or was already used. Request a new one and try again.";
+    case "access_denied":
+      return "That email link was cancelled or has already been used.";
+    case "recovery":
+      return "That password reset link is invalid or has expired. Request a new one.";
+    case "confirmation":
+      return "We couldn't confirm that email link. Sign in to request a new confirmation email.";
+    case "auth_callback":
+      return "We couldn't complete that sign-in link. It may have expired or been used already.";
+    default:
+      return "We couldn't complete that sign-in link. Please try again.";
+  }
 }

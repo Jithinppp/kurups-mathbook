@@ -3,6 +3,8 @@ import type { EmailOtpType } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
+import { safeNextPath } from "@/lib/auth-redirect";
+
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
@@ -10,11 +12,26 @@ export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
   const tokenHash = requestUrl.searchParams.get("token_hash");
   const type = requestUrl.searchParams.get("type") as EmailOtpType | null;
-  const nextParam = requestUrl.searchParams.get("next") ?? "/";
-  const next = nextParam.startsWith("/") ? nextParam : "/";
+  const nextParam = requestUrl.searchParams.get("next");
+  const next = type === "recovery" ? "/reset-password" : safeNextPath(nextParam);
+  const errorCode =
+    requestUrl.searchParams.get("error_code") ??
+    requestUrl.searchParams.get("error");
 
   if (!url || !anonKey) {
     return NextResponse.redirect(new URL("/login", requestUrl.origin));
+  }
+
+  if (errorCode) {
+    const error =
+      errorCode === "otp_expired"
+        ? "expired"
+        : type === "recovery"
+          ? "recovery"
+          : "access_denied";
+    return NextResponse.redirect(
+      new URL(`/login?error=${encodeURIComponent(error)}`, requestUrl.origin),
+    );
   }
 
   if (tokenHash && type) {
@@ -43,6 +60,9 @@ export async function GET(request: Request) {
     if (!error) {
       return NextResponse.redirect(new URL(next, requestUrl.origin));
     }
+    return NextResponse.redirect(
+      new URL("/login?error=expired", requestUrl.origin),
+    );
   }
 
   return NextResponse.redirect(
