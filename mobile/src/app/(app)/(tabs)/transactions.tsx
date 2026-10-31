@@ -170,13 +170,6 @@ export default function TransactionsScreen() {
       />
       <View style={styles.toolbar}>
         <MonthPicker month={month} onChange={setMonth} />
-        <Button
-          label="Statement"
-          variant="secondary"
-          size="sm"
-          icon={<Download color={colors.ink} size={13} />}
-          onPress={() => setStatementOpen(true)}
-        />
       </View>
 
       {selectedAccount ? (
@@ -352,6 +345,16 @@ export default function TransactionsScreen() {
                 />
               </View>
             ) : null}
+            {selectedAccount ? (
+              <View style={styles.statementAction}>
+                <Button
+                  label="Download statement"
+                  variant="secondary"
+                  icon={<Download color={colors.ink} size={15} />}
+                  onPress={() => setStatementOpen(true)}
+                />
+              </View>
+            ) : null}
           </View>
         }
         contentContainerStyle={styles.content}
@@ -524,6 +527,7 @@ const styles = StyleSheet.create({
     borderTopColor: colors.lineSoft,
     paddingTop: 16,
   },
+  statementAction: { alignItems: "center", marginTop: 18 },
   loadMoreText: {
     fontFamily: font.regular,
     fontSize: 10,

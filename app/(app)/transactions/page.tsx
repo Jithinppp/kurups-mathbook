@@ -188,19 +188,7 @@ export default function TransactionsPage() {
         description={`Every entry for ${selectedAccount.name} in ${formatMonth(
           month,
         )}. Only this account is shown; its balance carries forward.`}
-        actions={
-          <>
-            <MonthPicker value={month} onChange={setMonth} />
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => setStatementOpen(true)}
-            >
-              <Download className="size-3.5" />
-              Statement
-            </Button>
-          </>
-        }
+        actions={<MonthPicker value={month} onChange={setMonth} />}
       />
 
       <div className="space-y-2">
@@ -427,6 +415,13 @@ export default function TransactionsPage() {
             ? `${formatPercent((summary.net / summary.income) * 100)} kept`
             : "No income"}
         </Badge>
+      </div>
+
+      <div className="flex justify-center pt-1">
+        <Button variant="secondary" onClick={() => setStatementOpen(true)}>
+          <Download className="size-4" />
+          Download statement
+        </Button>
       </div>
 
       <StatementDialog
