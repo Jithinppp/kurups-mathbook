@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { AccountSwitcher } from "@/components/account-switcher";
 import { Money } from "@/components/money";
 import { MonthPicker } from "@/components/month-picker";
 import { PageHeader } from "@/components/page-header";
@@ -188,8 +189,12 @@ export default function TransactionsPage() {
         description={`Every entry for ${selectedAccount.name} in ${formatMonth(
           month,
         )}. Only this account is shown; its balance carries forward.`}
-        actions={<MonthPicker value={month} onChange={setMonth} />}
       />
+
+      <div className="flex flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-center">
+        <MonthPicker value={month} onChange={setMonth} />
+        <AccountSwitcher label="Change account" />
+      </div>
 
       <div className="space-y-2">
         <div className="grid auto-rows-fr grid-cols-2 gap-2.5 sm:grid-cols-4 sm:gap-3">

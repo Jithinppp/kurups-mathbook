@@ -19,7 +19,13 @@ function accountKind(account: Pick<Account, "type">) {
   return "Bank";
 }
 
-export function AccountSwitcher({ className }: { className?: string }) {
+export function AccountSwitcher({
+  className,
+  label,
+}: {
+  className?: string;
+  label?: string;
+}) {
   const { activeAccounts, selectedAccount, selectedAccountId, setSelectedAccountId } =
     useAccountSelection();
   const [open, setOpen] = useState(false);
@@ -76,9 +82,16 @@ export function AccountSwitcher({ className }: { className?: string }) {
         type="button"
         data-testid="account-switcher-trigger"
         onClick={() => setOpen((current) => !current)}
+        aria-label={`Change account. Currently ${selectedAccount.name}`}
+        title="Change account"
         aria-expanded={open}
         aria-controls={open ? panelId : undefined}
-        className="flex h-11 w-full items-center gap-2.5 rounded-xl border border-line-soft bg-white px-3 text-left shadow-[0_1px_2px_rgba(16,24,40,0.03)] transition hover:border-line focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/15 sm:h-10 sm:min-w-[205px] sm:max-w-[260px]"
+        className={cn(
+          "flex h-11 w-full items-center gap-2.5 rounded-xl border border-line-soft bg-white px-3 text-left shadow-[0_1px_2px_rgba(16,24,40,0.03)] transition hover:border-line focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/15 sm:h-10",
+          label
+            ? "sm:min-w-[250px] sm:max-w-[320px]"
+            : "sm:min-w-[205px] sm:max-w-[260px]",
+        )}
       >
         <span
           className="flex size-7 shrink-0 items-center justify-center rounded-lg"
@@ -91,9 +104,10 @@ export function AccountSwitcher({ className }: { className?: string }) {
         </span>
         <span className="min-w-0 flex-1">
           <span className="block truncate text-[12px] font-semibold text-ink">
-            {selectedAccount.name}
+            {label ?? selectedAccount.name}
           </span>
           <span className="block truncate text-[10px] text-subtle">
+            {label ? `${selectedAccount.name} · ` : ""}
             {accountKind(selectedAccount)} · {selectedAccount.currency}
           </span>
         </span>

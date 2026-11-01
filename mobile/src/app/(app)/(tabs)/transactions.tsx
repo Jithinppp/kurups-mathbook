@@ -36,6 +36,7 @@ import {
 import { useAccountSelection } from "@/contexts/account-selection";
 import { useData } from "@/contexts/data";
 import { useToast } from "@/contexts/toast";
+import { AccountSwitcher } from "@/components/account-switcher";
 import { MonthPicker } from "@/components/month-picker";
 import { StatementSheet } from "@/components/statement-sheet";
 import { TransactionRow } from "@/components/transaction-row";
@@ -170,6 +171,7 @@ export default function TransactionsScreen() {
       />
       <View style={styles.toolbar}>
         <MonthPicker month={month} onChange={setMonth} />
+        <AccountSwitcher fullWidth label="Change account" />
       </View>
 
       {selectedAccount ? (
@@ -465,7 +467,7 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.canvas },
   content: { padding: 18, paddingBottom: 0 },
   header: { gap: 16, paddingBottom: 8 },
-  toolbar: { flexDirection: "row", alignItems: "center", gap: 8 },
+  toolbar: { gap: 8 },
   summaryGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   summaryCard: {
     width: "48.7%",

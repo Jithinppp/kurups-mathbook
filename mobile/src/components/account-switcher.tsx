@@ -12,7 +12,13 @@ import { Money } from "@/components/ui/money";
 import { Sheet } from "@/components/ui/sheet";
 import { colors, font, radius } from "@/lib/theme";
 
-export function AccountSwitcher({ fullWidth = false }: { fullWidth?: boolean }) {
+export function AccountSwitcher({
+  fullWidth = false,
+  label,
+}: {
+  fullWidth?: boolean;
+  label?: string;
+}) {
   const router = useRouter();
   const { activeAccounts, selectedAccount, setSelectedAccountId } =
     useAccountSelection();
@@ -43,9 +49,10 @@ export function AccountSwitcher({ fullWidth = false }: { fullWidth?: boolean }) 
         </View>
         <View style={styles.pillText}>
           <Text style={styles.pillName} numberOfLines={1}>
-            {selectedAccount.name}
+            {label ?? selectedAccount.name}
           </Text>
           <Text style={styles.pillMeta} numberOfLines={1}>
+            {label ? `${selectedAccount.name} · ` : ""}
             {selectedAccount.type === "credit_card"
               ? "Credit card"
               : selectedAccount.type === "cash"
