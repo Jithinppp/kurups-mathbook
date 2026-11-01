@@ -35,6 +35,7 @@ interface AuthContextValue {
   updatePassword: (password: string) => Promise<void>;
   resendConfirmation: (email: string) => Promise<void>;
   signOut: () => Promise<void>;
+  deleteAccount: () => Promise<void>;
   enterDemo: () => Promise<void>;
 }
 
@@ -181,6 +182,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }, [user]);
 
+  const deleteAccount = useCallback(async () => {
+    if (!supabase) throw new Error("Supabase is not configured.");
+    const { error } = await supabase.rpc("delete_my_account");
+    if (error) throw new Error(error.message);
+    await signOut();
+  }, [signOut]);
+
   const enterDemo = useCallback(async () => {
     if (supabase) {
       await supabase.auth.signOut({ scope: "local" }).catch(() => undefined);
@@ -201,6 +209,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       updatePassword,
       resendConfirmation,
       signOut,
+      deleteAccount,
       enterDemo,
     }),
     [
@@ -212,6 +221,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       updatePassword,
       resendConfirmation,
       signOut,
+      deleteAccount,
       enterDemo,
     ],
   );

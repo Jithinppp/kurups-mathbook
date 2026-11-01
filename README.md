@@ -11,6 +11,7 @@ without converting AED and INR into one misleading total.
 
 - Email sign up / sign in with Supabase Auth
 - Guided first-account onboarding for bank, cash and credit-card accounts
+- Permanent account deletion with a typed-name confirmation
 - Per-user data isolation with Postgres Row Level Security
 - Bank, cash and credit-card accounts
 - Signed amount ledger (`opening + income + transfers in − expenses − transfers out`)
@@ -95,6 +96,7 @@ scheme.
    1. [`202610210001_native_currencies.sql`](supabase/migrations/202610210001_native_currencies.sql)
    2. [`202610220001_account_scoped_budgets.sql`](supabase/migrations/202610220001_account_scoped_budgets.sql)
    3. [`202611010001_no_default_account.sql`](supabase/migrations/202611010001_no_default_account.sql)
+   4. [`202611010002_delete_my_account.sql`](supabase/migrations/202611010002_delete_my_account.sql)
 3. In **Authentication → URL Configuration**, set:
    - Site URL: `http://localhost:3000` (or your deployed URL)
    - Redirect URLs:

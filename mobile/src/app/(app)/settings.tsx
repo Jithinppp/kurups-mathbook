@@ -18,6 +18,7 @@ import {
   RefreshCcw,
   ShieldCheck,
   Trash2,
+  TriangleAlert,
   User,
 } from "lucide-react-native";
 import {
@@ -68,7 +69,7 @@ const CATEGORY_ICONS = [
 
 export default function SettingsScreen() {
   const router = useRouter();
-  const { user, signOut, configured } = useAuth();
+  const { user, signOut, configured, deleteAccount } = useAuth();
   const {
     profile,
     accounts,
@@ -94,6 +95,17 @@ export default function SettingsScreen() {
   const [categoryColor, setCategoryColor] = useState(DEFAULT_COLOR);
   const [categoryError, setCategoryError] = useState<string | null>(null);
   const [savingCategory, setSavingCategory] = useState(false);
+  const [deleteAccountOpen, setDeleteAccountOpen] = useState(false);
+  const [deleteConfirmation, setDeleteConfirmation] = useState("");
+  const [deletingAccount, setDeletingAccount] = useState(false);
+  const [deleteAccountError, setDeleteAccountError] = useState<string | null>(
+    null,
+  );
+  const deletePhrase = (profile.fullName || user?.name || user?.email || "").trim();
+  const canDeleteAccount =
+    deletePhrase.length > 0 &&
+    deleteConfirmation.trim() === deletePhrase &&
+    !deletingAccount;
 
   async function saveName() {
     if (!name.trim()) {
@@ -296,6 +308,37 @@ export default function SettingsScreen() {
         },
       ],
     );
+  }
+
+  function openDeleteAccount() {
+    setDeleteConfirmation("");
+    setDeleteAccountError(null);
+    setDeleteAccountOpen(true);
+  }
+
+  function closeDeleteAccount() {
+    if (deletingAccount) return;
+    setDeleteAccountOpen(false);
+    setDeleteConfirmation("");
+    setDeleteAccountError(null);
+  }
+
+  async function handleDeleteAccount() {
+    if (!canDeleteAccount) return;
+    setDeleteAccountError(null);
+    setDeletingAccount(true);
+    try {
+      await deleteAccount();
+      router.replace("/login?deleted=1");
+    } catch (caught) {
+      setDeleteAccountError(
+        caught instanceof Error
+          ? caught.message
+          : "Could not delete your account.",
+      );
+    } finally {
+      setDeletingAccount(false);
+    }
   }
 
   return (
@@ -507,6 +550,34 @@ export default function SettingsScreen() {
           />
         </Card>
 
+        {!user?.isDemo ? (
+          <Card style={styles.dangerCard}>
+            <View style={styles.sectionHeader}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.sectionTitle, styles.dangerTitle]}>
+                  Danger zone
+                </Text>
+                <Text style={styles.sectionDescription}>
+                  Permanently delete your account and everything in this workspace.
+                </Text>
+              </View>
+              <View style={styles.dangerIcon}>
+                <TriangleAlert color={colors.danger} size={18} />
+              </View>
+            </View>
+            <Text style={styles.dangerCopy}>
+              This removes your profile, accounts, transactions, categories and
+              budgets. It cannot be undone.
+            </Text>
+            <Button
+              label="Delete account"
+              variant="danger"
+              icon={<Trash2 color={colors.danger} size={15} />}
+              onPress={openDeleteAccount}
+            />
+          </Card>
+        ) : null}
+
         <View style={styles.brandCard}>
           <Logo />
           <Text style={styles.brandText}>
@@ -590,6 +661,62 @@ export default function SettingsScreen() {
             label={editingCategory ? "Save changes" : "Add category"}
             onPress={saveCategory}
             loading={savingCategory}
+          />
+        </View>
+      </Sheet>
+
+      <Sheet
+        visible={deleteAccountOpen}
+        onClose={closeDeleteAccount}
+        title="Delete account permanently?"
+        description="This cannot be undone. Your sign-in will stop working immediately."
+      >
+        <View style={styles.sheetBody}>
+          <View style={styles.deleteWarning}>
+            <TriangleAlert color={colors.danger} size={18} />
+            <Text style={styles.deleteWarningText}>
+              This permanently deletes your profile, sign-in credentials, accounts,
+              transactions, categories and budgets.
+            </Text>
+          </View>
+
+          <Field label="Type your username to confirm" hint={deletePhrase}>
+            <Input
+              value={deleteConfirmation}
+              onChangeText={setDeleteConfirmation}
+              placeholder={deletePhrase}
+              autoCapitalize="none"
+              autoCorrect={false}
+              autoFocus
+              editable={!deletingAccount}
+            />
+          </Field>
+
+          <Text style={styles.deleteHint}>
+            Type{" "}
+            <Text style={styles.deleteHintName}>{deletePhrase}</Text> exactly to
+            enable the delete button.
+          </Text>
+
+          {deleteAccountError ? (
+            <View style={styles.categoryError}>
+              <Text style={styles.categoryErrorText}>{deleteAccountError}</Text>
+            </View>
+          ) : null}
+
+          <Button
+            label="Delete account permanently"
+            variant="danger"
+            icon={<Trash2 color={colors.danger} size={15} />}
+            onPress={handleDeleteAccount}
+            loading={deletingAccount}
+            disabled={!canDeleteAccount}
+          />
+          <Button
+            label="Keep account"
+            variant="secondary"
+            onPress={closeDeleteAccount}
+            disabled={deletingAccount}
           />
         </View>
       </Sheet>
@@ -742,6 +869,51 @@ const styles = StyleSheet.create({
     fontSize: 10,
     lineHeight: 15,
     color: colors.warning,
+  },
+  dangerCard: {
+    gap: 12,
+    padding: 16,
+    borderColor: colors.dangerSoft,
+  },
+  dangerTitle: { color: colors.danger },
+  dangerIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.dangerSoft,
+  },
+  dangerCopy: {
+    fontFamily: font.regular,
+    fontSize: 10,
+    lineHeight: 16,
+    color: colors.muted,
+  },
+  deleteWarning: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 9,
+    borderRadius: radius.md,
+    backgroundColor: colors.dangerSoft,
+    padding: 12,
+  },
+  deleteWarningText: {
+    flex: 1,
+    fontFamily: font.medium,
+    fontSize: 10,
+    lineHeight: 16,
+    color: colors.danger,
+  },
+  deleteHint: {
+    fontFamily: font.regular,
+    fontSize: 10,
+    lineHeight: 16,
+    color: colors.subtle,
+  },
+  deleteHintName: {
+    fontFamily: font.semibold,
+    color: colors.ink,
   },
   brandCard: {
     alignItems: "center",

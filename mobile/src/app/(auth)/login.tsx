@@ -20,7 +20,11 @@ import { colors, font, radius } from "@/lib/theme";
 
 export default function LoginScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ reset?: string; error?: string }>();
+  const params = useLocalSearchParams<{
+    reset?: string;
+    error?: string;
+    deleted?: string;
+  }>();
   const { signIn, enterDemo, resendConfirmation, configured } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -34,9 +38,11 @@ export default function LoginScreen() {
   const notice =
     params.reset === "1"
       ? "Password updated. Sign in with your new password."
-      : typeof params.error === "string"
-        ? authErrorMessage(params.error)
-        : null;
+      : params.deleted === "1"
+        ? "Your account and all workspace data were permanently deleted."
+        : typeof params.error === "string"
+          ? authErrorMessage(params.error)
+          : null;
   const noticeIsError = Boolean(params.error);
 
   async function handleSignIn() {

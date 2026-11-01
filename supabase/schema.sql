@@ -322,6 +322,35 @@ create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function public.handle_new_user();
 
+-- ---------- permanent account deletion ---------------------------
+-- Deleting auth.users cascades through the profile and every workspace table.
+create or replace function public.delete_my_account()
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  current_user_id uuid := auth.uid();
+begin
+  if current_user_id is null then
+    raise exception 'You must be signed in to delete your account.'
+      using errcode = '42501';
+  end if;
+
+  delete from auth.users
+  where id = current_user_id;
+
+  if not found then
+    raise exception 'Account not found.'
+      using errcode = 'P0002';
+  end if;
+end;
+$$;
+
+revoke all on function public.delete_my_account() from public;
+grant execute on function public.delete_my_account() to authenticated;
+
 -- ---------- row level security -----------------------------------
 alter table public.profiles enable row level security;
 alter table public.accounts enable row level security;

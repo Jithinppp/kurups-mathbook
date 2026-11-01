@@ -52,6 +52,7 @@ function LoginForm() {
   const errorCode = searchParams.get("error");
   const reset = searchParams.get("reset");
   const confirmed = searchParams.get("confirmed");
+  const deleted = searchParams.get("deleted");
   const nextParam = searchParams.get("next");
   const nextPath =
     nextParam?.startsWith("/") &&
@@ -71,7 +72,13 @@ function LoginForm() {
             tone: "success",
             message: "Email confirmed. Sign in to continue.",
           }
-        : null;
+        : deleted
+          ? {
+              tone: "success",
+              message:
+                "Your account and all workspace data have been permanently deleted.",
+            }
+          : null;
   const notice = noticeDismissed ? null : derivedNotice;
 
   async function handleSubmit(event: React.FormEvent) {

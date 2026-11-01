@@ -11,6 +11,7 @@ import {
   RefreshCcw,
   ShieldCheck,
   Trash2,
+  TriangleAlert,
   UserRound,
 } from "lucide-react";
 import Link from "next/link";
@@ -32,7 +33,7 @@ import type { Category } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 export default function SettingsPage() {
-  const { user, signOut, configured } = useAuth();
+  const { user, signOut, configured, deleteAccount } = useAuth();
   const {
     profile,
     accounts,
@@ -51,7 +52,18 @@ export default function SettingsPage() {
   const [deletingCategory, setDeletingCategory] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [confirmReset, setConfirmReset] = useState(false);
+  const [deleteAccountOpen, setDeleteAccountOpen] = useState(false);
+  const [deleteConfirmation, setDeleteConfirmation] = useState("");
+  const [deletingAccount, setDeletingAccount] = useState(false);
+  const [deleteAccountError, setDeleteAccountError] = useState<string | null>(
+    null,
+  );
   const name = nameDraft ?? profile.fullName;
+  const deletePhrase = (profile.fullName || user?.name || user?.email || "").trim();
+  const canDeleteAccount =
+    deletePhrase.length > 0 &&
+    deleteConfirmation.trim() === deletePhrase &&
+    !deletingAccount;
 
   async function saveName() {
     const nextName = name.trim();
@@ -114,6 +126,38 @@ export default function SettingsPage() {
       );
     } finally {
       setDeletingCategory(false);
+    }
+  }
+
+  function openDeleteAccount() {
+    setDeleteConfirmation("");
+    setDeleteAccountError(null);
+    setDeleteAccountOpen(true);
+  }
+
+  function handleDeleteAccountOpenChange(open: boolean) {
+    if (!open && deletingAccount) return;
+    setDeleteAccountOpen(open);
+    if (!open) {
+      setDeleteConfirmation("");
+      setDeleteAccountError(null);
+    }
+  }
+
+  async function handleDeleteAccount() {
+    if (!canDeleteAccount) return;
+    setDeleteAccountError(null);
+    setDeletingAccount(true);
+    try {
+      await deleteAccount();
+    } catch (failure) {
+      setDeleteAccountError(
+        failure instanceof Error
+          ? failure.message
+          : "Could not delete your account.",
+      );
+    } finally {
+      setDeletingAccount(false);
     }
   }
 
@@ -381,6 +425,43 @@ export default function SettingsPage() {
         </Card>
       </div>
 
+      {!user?.isDemo ? (
+        <Card className="border-danger/20">
+          <CardHeader>
+            <div>
+              <CardTitle className="text-danger">Danger zone</CardTitle>
+              <p className="mt-1 text-xs text-muted">
+                Permanently delete your account and everything in this workspace.
+              </p>
+            </div>
+            <span className="flex size-9 items-center justify-center rounded-xl bg-danger-soft text-danger">
+              <TriangleAlert className="size-4" />
+            </span>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col gap-3 rounded-xl border border-danger/15 bg-danger-soft/45 px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-[13px] font-semibold text-ink">Delete account</p>
+                <p className="mt-0.5 text-[11px] leading-relaxed text-muted">
+                  This removes your profile, accounts, transactions, categories
+                  and budgets. It cannot be undone.
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="danger"
+                size="sm"
+                className="shrink-0"
+                onClick={openDeleteAccount}
+              >
+                <Trash2 className="size-3.5" />
+                Delete account
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
+
       <div className="flex flex-col items-start justify-between gap-3 rounded-2xl border border-line-soft bg-white px-4 py-4 sm:flex-row sm:items-center">
         <div className="flex items-center gap-2.5">
           <span className="flex size-8 items-center justify-center rounded-lg bg-brand text-white">
@@ -455,6 +536,80 @@ export default function SettingsPage() {
           {deleteError ? (
             <p className="rounded-xl bg-danger-soft px-3 py-2.5 text-xs font-medium text-danger">
               {deleteError}
+            </p>
+          ) : null}
+        </div>
+      </Dialog>
+
+      <Dialog
+        open={deleteAccountOpen}
+        onOpenChange={handleDeleteAccountOpenChange}
+        title="Delete your account permanently?"
+        description="This cannot be undone. Your sign-in will stop working immediately."
+        footer={
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant="secondary"
+              onClick={() => handleDeleteAccountOpenChange(false)}
+              disabled={deletingAccount}
+            >
+              Keep account
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="danger"
+              onClick={() => void handleDeleteAccount()}
+              loading={deletingAccount}
+              disabled={!canDeleteAccount}
+            >
+              Delete account permanently
+            </Button>
+          </div>
+        }
+      >
+        <div className="space-y-4">
+          <div className="rounded-xl border border-danger/15 bg-danger-soft px-4 py-3 text-xs leading-relaxed text-danger">
+            <p className="font-semibold">This will permanently delete:</p>
+            <ul className="mt-1.5 list-disc space-y-1 pl-4">
+              <li>Your profile and sign-in credentials</li>
+              <li>All accounts and their balances</li>
+              <li>All transactions, categories and budgets</li>
+            </ul>
+          </div>
+
+          <Field
+            label="Type your username to confirm"
+            hint={deletePhrase}
+            htmlFor="delete-account-confirmation"
+          >
+            <Input
+              id="delete-account-confirmation"
+              value={deleteConfirmation}
+              onChange={(event) => setDeleteConfirmation(event.target.value)}
+              placeholder={deletePhrase}
+              autoComplete="off"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              disabled={deletingAccount}
+              autoFocus
+            />
+          </Field>
+
+          <p className="text-[11px] leading-relaxed text-subtle">
+            Type{" "}
+            <span className="rounded bg-canvas px-1.5 py-0.5 font-semibold text-ink">
+              {deletePhrase}
+            </span>{" "}
+            exactly to enable the delete button.
+          </p>
+
+          {deleteAccountError ? (
+            <p className="rounded-xl bg-danger-soft px-3 py-2.5 text-xs font-medium text-danger">
+              {deleteAccountError}
             </p>
           ) : null}
         </div>
