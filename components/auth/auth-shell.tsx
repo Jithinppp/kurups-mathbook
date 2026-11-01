@@ -93,9 +93,6 @@ export function AuthShell({ children }: { children: ReactNode }) {
         <div className="flex flex-1 items-center justify-center py-10">
           <div className="w-full max-w-[400px]">{children}</div>
         </div>
-        <div className="flex items-center text-[10px] text-subtle">
-          <span>AshariBook · Personal finance</span>
-        </div>
       </main>
     </div>
   );
