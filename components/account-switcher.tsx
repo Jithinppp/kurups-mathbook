@@ -87,7 +87,7 @@ export function AccountSwitcher({
         aria-expanded={open}
         aria-controls={open ? panelId : undefined}
         className={cn(
-          "flex h-11 w-full items-center gap-2.5 rounded-xl border border-line-soft bg-white px-3 text-left shadow-[0_1px_2px_rgba(16,24,40,0.03)] transition hover:border-line focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/15 sm:h-10",
+          "flex h-11 w-full items-center gap-2.5 rounded-xl border border-line-soft bg-white px-3 text-left shadow-[0_1px_2px_rgba(16,24,40,0.03)] transition hover:border-line focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/15",
           label
             ? "sm:min-w-[250px] sm:max-w-[320px]"
             : "sm:min-w-[205px] sm:max-w-[260px]",

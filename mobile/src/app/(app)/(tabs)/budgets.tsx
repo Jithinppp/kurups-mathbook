@@ -174,7 +174,6 @@ export default function BudgetsScreen() {
           <View style={styles.controls}>
             <Button
               label="Set budget"
-              size="sm"
               icon={<Plus color={colors.white} size={15} />}
               onPress={() => openBudget()}
             />

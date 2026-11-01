@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 
 export function AuthShell({ children }: { children: ReactNode }) {
   return (
-    <div className="min-h-dvh bg-white lg:grid lg:grid-cols-[1.03fr_0.97fr]">
+    <div className="h-dvh overflow-hidden bg-white lg:grid lg:grid-cols-[1.03fr_0.97fr]">
       <aside className="relative hidden overflow-hidden bg-brand p-10 text-white lg:flex lg:flex-col xl:p-14">
         <div
           className="pointer-events-none absolute inset-0 opacity-[0.13]"
@@ -86,7 +86,7 @@ export function AuthShell({ children }: { children: ReactNode }) {
         </div>
       </aside>
 
-      <main className="flex min-h-dvh flex-col px-5 py-6 sm:px-8 lg:px-12">
+      <main className="flex h-dvh min-h-0 flex-col overflow-y-auto px-5 py-6 sm:px-8 lg:px-12">
         <div className="lg:hidden">
           <Logo />
         </div>

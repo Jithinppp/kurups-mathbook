@@ -162,7 +162,7 @@ export default function BudgetsPage() {
       />
 
       <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
-        <Button onClick={openNew} className="sm:h-10">
+        <Button onClick={openNew}>
           <Plus className="size-4" />
           Set budget
         </Button>
