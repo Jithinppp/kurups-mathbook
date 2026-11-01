@@ -35,6 +35,7 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 const DEMO_COOKIE = "asharibook-demo";
 const DEMO_USER_KEY = "asharibook.demo.user";
+const IS_SECURE = typeof window !== "undefined" && window.location.protocol === "https:";
 const DEMO_USER: AppUser = {
   id: "demo-user",
   email: "jithin@asharibook.app",
@@ -44,9 +45,10 @@ const DEMO_USER: AppUser = {
 
 function setDemoCookie(enabled: boolean) {
   if (typeof document === "undefined") return;
+  const secure = IS_SECURE ? "; Secure" : "";
   document.cookie = `${DEMO_COOKIE}=${enabled ? "1" : ""}; path=/; max-age=${
     enabled ? 60 * 60 * 24 * 30 : 0
-  }; samesite=lax`;
+  }; samesite=lax${secure}`;
 }
 
 function hasDemoCookie() {
@@ -199,7 +201,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     const supabase = getSupabaseBrowserClient();
     if (supabase) {
-      await supabase.auth.signOut().catch(() => undefined);
+      const { error } = await supabase.auth.signOut();
+      if (error) throw new Error(error.message);
     }
     setUser(null);
     // A full reload clears any preserved auth-page state and stale errors.

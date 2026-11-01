@@ -23,14 +23,14 @@ export function MonthPicker({
   return (
     <div
       className={cn(
-        "inline-flex h-10 items-center rounded-xl border border-line-soft bg-white p-1 shadow-[0_1px_2px_rgba(16,24,40,0.03)]",
+        "inline-flex h-11 items-center rounded-xl border border-line-soft bg-white p-1 shadow-[0_1px_2px_rgba(16,24,40,0.03)]",
         className,
       )}
     >
       <button
         type="button"
         onClick={() => onChange(addMonths(value, -1))}
-        className="flex size-8 items-center justify-center rounded-lg text-muted transition hover:bg-canvas hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/20"
+        className="flex size-9 items-center justify-center rounded-lg text-muted transition hover:bg-canvas hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/20"
         aria-label="Previous month"
       >
         <ChevronLeft className="size-4" />
@@ -56,7 +56,7 @@ export function MonthPicker({
         type="button"
         onClick={() => onChange(addMonths(value, 1))}
         disabled={value >= current}
-        className="flex size-8 items-center justify-center rounded-lg text-muted transition hover:bg-canvas hover:text-ink disabled:pointer-events-none disabled:opacity-30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/20"
+        className="flex size-9 items-center justify-center rounded-lg text-muted transition hover:bg-canvas hover:text-ink disabled:pointer-events-none disabled:opacity-30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/20"
         aria-label="Next month"
       >
         <ChevronRight className="size-4" />

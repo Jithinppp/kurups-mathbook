@@ -16,6 +16,7 @@ import { Suspense, useState } from "react";
 import { AuthShell } from "@/components/auth/auth-shell";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth-context";
+import { safeNextPath } from "@/lib/auth-redirect";
 
 type Notice = { tone: "error" | "success"; message: string };
 
@@ -54,12 +55,7 @@ function LoginForm() {
   const confirmed = searchParams.get("confirmed");
   const deleted = searchParams.get("deleted");
   const nextParam = searchParams.get("next");
-  const nextPath =
-    nextParam?.startsWith("/") &&
-    !nextParam.startsWith("//") &&
-    !nextParam.includes("\\")
-      ? nextParam
-      : "/";
+  const nextPath = safeNextPath(nextParam);
   const derivedNotice: Notice | null = errorCode
     ? { tone: "error", message: authErrorMessage(errorCode) }
     : reset

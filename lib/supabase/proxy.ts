@@ -6,6 +6,36 @@ const ALWAYS_ALLOWED_PATHS = ["/reset-password"];
 const AUTH_PREFIX = "/auth";
 const DEMO_COOKIE = "asharibook-demo";
 
+// ---------- rate limiting ----------
+// In-memory store for single-instance deploys. Production should use Redis/KV.
+const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute
+const RATE_LIMIT_MAX = 10; // max requests per window per ip+path
+const rateLimitHits = new Map<string, { count: number; resetAt: number }>();
+
+function rateLimitAllowed(ip: string, path: string): boolean {
+  const key = `${ip}:${path}`;
+  const now = Date.now();
+  const entry = rateLimitHits.get(key);
+  if (!entry || now > entry.resetAt) {
+    rateLimitHits.set(key, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
+    return true;
+  }
+  if (entry.count >= RATE_LIMIT_MAX) return false;
+  entry.count += 1;
+  return true;
+}
+
+function rateLimitExceededResponse() {
+  return new NextResponse(
+    JSON.stringify({ error: "Too many requests. Please try again later." }),
+    {
+      status: 429,
+      headers: { "content-type": "application/json" },
+    },
+  );
+}
+// ---------- end rate limiting ----------
+
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const configured = Boolean(url && anonKey);
@@ -79,6 +109,19 @@ export async function updateSession(request: NextRequest) {
   if (authRedirect) return authRedirect;
 
   const pathname = request.nextUrl.pathname;
+
+  // Rate limit auth endpoints (credential stuffing / reset spam).
+  const AUTH_RATE_PATHS = ["/login", "/signup", "/forgot-password", "/auth/callback", "/auth/confirm"];
+  if (AUTH_RATE_PATHS.includes(pathname)) {
+    const ip =
+      request.headers.get("x-real-ip") ??
+      request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+      "unknown";
+    if (!rateLimitAllowed(ip, pathname)) {
+      return rateLimitExceededResponse();
+    }
+  }
+
   const publicRoute = isPublic(pathname);
   const isDemo = request.cookies.get(DEMO_COOKIE)?.value === "1";
 

@@ -86,13 +86,13 @@ export default function AccountsPage() {
         eyebrow="Accounts"
         title="Everything you spend from"
         description="One place for bank accounts, cards and cash. Every balance stays in its account currency."
-        actions={
-          <Button onClick={() => openAdd("bank")} className="hidden sm:inline-flex">
-            <Plus className="size-4" />
-            Add account
-          </Button>
-        }
       />
+      <div className="flex items-end gap-2">
+        <Button onClick={() => openAdd("bank")} className="hidden sm:inline-flex">
+          <Plus className="size-4" />
+          Add account
+        </Button>
+      </div>
 
       {visible.length > 0 ? (
         <section>

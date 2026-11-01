@@ -216,8 +216,10 @@ export default function DashboardPage() {
         eyebrow="Your money"
         title={`Welcome back, ${firstName}`}
         description={`A clear view of ${selectedAccount.name} in ${monthLabel}. Only this account's activity counts here, and its balance carries into ${nextMonthLabel}.`}
-        actions={<MonthPicker value={month} onChange={setMonth} />}
       />
+      <div className="flex items-end gap-2">
+        <MonthPicker value={month} onChange={setMonth} />
+      </div>
 
       <section
         className="relative overflow-hidden rounded-[24px] p-5 text-white sm:p-7 lg:p-8"

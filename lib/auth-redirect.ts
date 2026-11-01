@@ -27,5 +27,8 @@ export function safeNextPath(value: string | null | undefined, fallback = "/") {
   if (!value.startsWith("/") || value.startsWith("//") || value.includes("\\")) {
     return fallback;
   }
+  // Reject path traversal segments (..) that stay same-origin but escape intent.
+  const segments = value.split("/");
+  if (segments.includes("..")) return fallback;
   return value;
 }

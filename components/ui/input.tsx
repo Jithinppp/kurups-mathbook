@@ -1,4 +1,4 @@
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Eye, EyeOff } from "lucide-react";
 import type {
   InputHTMLAttributes,
   ReactNode,
@@ -83,6 +83,68 @@ export function Field({
       ) : null}
       {children}
       {error ? <p className="text-xs text-danger">{error}</p> : null}
+    </div>
+  );
+}
+
+const authInputBase =
+  "h-11 w-full rounded-xl border border-line bg-white pl-10 pr-3.5 text-sm text-ink outline-none transition placeholder:text-subtle focus:border-brand focus:ring-4 focus:ring-brand/10";
+
+export function AuthInput({
+  id,
+  label,
+  type = "text",
+  value,
+  onChange,
+  placeholder,
+  autoComplete,
+  required,
+  minLength,
+  showPassword,
+  ...props
+}: {
+  id: string;
+  label?: string;
+  type?: string;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  autoComplete?: string;
+  required?: boolean;
+  minLength?: number;
+  showPassword?: boolean;
+}) {
+  return (
+    <div className="space-y-2">
+      {label ? (
+        <label htmlFor={id} className="text-[13px] font-medium text-ink">
+          {label}
+        </label>
+      ) : null}
+      <div className="relative">
+        <input
+          id={id}
+          type={showPassword ? "text" : type}
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          autoComplete={autoComplete}
+          required={required}
+          minLength={minLength}
+          placeholder={placeholder}
+          className={cn(authInputBase, "pl-10", showPassword ? "pr-11" : "pr-3.5")}
+          {...props}
+        />
+        {showPassword ? (
+          <button
+            type="button"
+            onClick={() => {}}
+            className="absolute right-2 top-1/2 flex size-8 -translate-y-1/2 items-center justify-center rounded-lg text-subtle transition hover:bg-canvas hover:text-ink"
+            aria-label={showPassword ? "Hide password" : "Show password"}
+          >
+            {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+          </button>
+        ) : null}
+      </div>
     </div>
   );
 }
