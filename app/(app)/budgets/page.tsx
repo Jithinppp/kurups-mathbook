@@ -12,6 +12,7 @@ import {
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
+import { AccountSwitcher } from "@/components/account-switcher";
 import { AppIcon } from "@/components/app-icon";
 import { BudgetDialog } from "@/components/budgets/budget-dialog";
 import { Money } from "@/components/money";
@@ -158,13 +159,15 @@ export default function BudgetsPage() {
         description={`Give ${selectedAccount.name} a plan for ${formatMonth(
           month,
         )}. Only this account's expenses count; plans reset monthly and balances carry forward.`}
-        actions={
-          <Button onClick={openNew} className="hidden sm:inline-flex">
-            <Plus className="size-4" />
-            Set budget
-          </Button>
-        }
       />
+
+      <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
+        <Button onClick={openNew} className="sm:h-10">
+          <Plus className="size-4" />
+          Set budget
+        </Button>
+        <AccountSwitcher label="Change account" />
+      </div>
 
       <Card className="relative overflow-hidden border-brand/10 bg-brand-soft/60">
         <div className="pointer-events-none absolute -right-12 -top-16 size-56 rounded-full border border-brand/10" />

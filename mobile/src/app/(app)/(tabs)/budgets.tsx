@@ -31,6 +31,7 @@ import {
 import { useAccountSelection } from "@/contexts/account-selection";
 import { useData } from "@/contexts/data";
 import { useToast } from "@/contexts/toast";
+import { AccountSwitcher } from "@/components/account-switcher";
 import { BudgetRow } from "@/components/budget-row";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -167,15 +168,19 @@ export default function BudgetsScreen() {
                 )}. Plans reset monthly and balances carry forward.`
               : "Give every category a ceiling. Plans belong to an account and reset by month."
           }
-          actions={
+        />
+
+        {selectedAccount ? (
+          <View style={styles.controls}>
             <Button
               label="Set budget"
               size="sm"
               icon={<Plus color={colors.white} size={15} />}
               onPress={() => openBudget()}
             />
-          }
-        />
+            <AccountSwitcher fullWidth label="Change account" />
+          </View>
+        ) : null}
 
         {!selectedAccount ? (
           <EmptyState
@@ -313,6 +318,7 @@ export default function BudgetsScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.canvas },
   scroll: { padding: 18, gap: 16 },
+  controls: { gap: 8 },
   planCard: {
     borderRadius: 24,
     backgroundColor: colors.ink,

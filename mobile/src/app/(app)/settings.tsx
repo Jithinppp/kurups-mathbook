@@ -494,7 +494,7 @@ export default function SettingsScreen() {
               <Text style={styles.sectionDescription}>
                 {user?.isDemo
                   ? "This workspace is stored locally on this device."
-                  : "Your ledger syncs with Supabase. RLS keeps it private."}
+                  : "Your workspace syncs securely. Row-level security keeps it private."}
               </Text>
             </View>
             {user?.isDemo ? (
@@ -506,7 +506,7 @@ export default function SettingsScreen() {
           {!configured ? (
             <View style={styles.notice}>
               <Text style={styles.noticeText}>
-                Supabase is not configured in this build. The demo remains fully
+                Cloud sync is not configured in this build. The demo remains fully
                 usable offline.
               </Text>
             </View>

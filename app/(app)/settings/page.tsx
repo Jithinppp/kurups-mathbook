@@ -217,7 +217,7 @@ export default function SettingsPage() {
                 ) : (
                   <>
                     <ShieldCheck className="size-3.5 text-success" />
-                    Secured by Supabase Auth
+                    Secured with encrypted sign-in
                   </>
                 )}
               </div>
@@ -362,13 +362,13 @@ export default function SettingsPage() {
           <CardContent className="space-y-3">
             <div className="flex items-center justify-between gap-3 rounded-xl border border-line-soft px-4 py-3">
               <div>
-                <p className="text-[13px] font-medium text-ink">Connection</p>
+                <p className="text-[13px] font-medium text-ink">Cloud sync</p>
                 <p className="mt-0.5 text-[11px] text-subtle">
                   {user?.isDemo
                     ? "Local demo mode — data stays in this browser"
                     : configured
-                      ? "Connected to Supabase"
-                      : "Supabase environment variables are missing"}
+                      ? "Your workspace syncs securely"
+                      : "Cloud sync is not configured in this build"}
                 </p>
               </div>
               <Badge variant={user?.isDemo ? "warning" : "success"}>
@@ -461,23 +461,6 @@ export default function SettingsPage() {
           </CardContent>
         </Card>
       ) : null}
-
-      <div className="flex flex-col items-start justify-between gap-3 rounded-2xl border border-line-soft bg-white px-4 py-4 sm:flex-row sm:items-center">
-        <div className="flex items-center gap-2.5">
-          <span className="flex size-8 items-center justify-center rounded-lg bg-brand text-white">
-            <span className="text-[11px] font-bold">K</span>
-          </span>
-          <div>
-            <p className="text-xs font-semibold text-ink">AshariBook</p>
-            <p className="text-[11px] text-subtle">
-              A quieter way to keep the month honest.
-            </p>
-          </div>
-        </div>
-        <p className="text-[10px] text-subtle">
-          Next.js + Supabase · Native currencies
-        </p>
-      </div>
 
       <CategoryDialog
         open={categoryOpen}
