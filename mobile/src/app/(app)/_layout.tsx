@@ -2,10 +2,12 @@ import { Redirect, Stack } from "expo-router";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
 
 import { useAuth } from "@/contexts/auth";
+import { useData } from "@/contexts/data";
 import { colors } from "@/lib/theme";
 
 export default function AppLayout() {
   const { user, loading } = useAuth();
+  const { accounts, ready } = useData();
 
   if (loading) {
     return (
@@ -16,6 +18,16 @@ export default function AppLayout() {
   }
 
   if (!user) return <Redirect href="/login" />;
+
+  if (!ready) {
+    return (
+      <View style={styles.loading}>
+        <ActivityIndicator color={colors.brand} />
+      </View>
+    );
+  }
+
+  if (accounts.length === 0) return <Redirect href="/onboarding" />;
 
   return (
     <Stack screenOptions={{ headerShown: false }}>

@@ -10,6 +10,7 @@ without converting AED and INR into one misleading total.
 ## What's inside
 
 - Email sign up / sign in with Supabase Auth
+- Guided first-account onboarding for bank, cash and credit-card accounts
 - Per-user data isolation with Postgres Row Level Security
 - Bank, cash and credit-card accounts
 - Signed amount ledger (`opening + income + transfers in − expenses − transfers out`)
@@ -93,6 +94,7 @@ scheme.
    up first and run these in order:
    1. [`202610210001_native_currencies.sql`](supabase/migrations/202610210001_native_currencies.sql)
    2. [`202610220001_account_scoped_budgets.sql`](supabase/migrations/202610220001_account_scoped_budgets.sql)
+   3. [`202611010001_no_default_account.sql`](supabase/migrations/202611010001_no_default_account.sql)
 3. In **Authentication → URL Configuration**, set:
    - Site URL: `http://localhost:3000` (or your deployed URL)
    - Redirect URLs:
@@ -126,8 +128,14 @@ emails out of spam. Set `NEXT_PUBLIC_SITE_URL` to the deployed HTTPS origin
 before sending production emails; otherwise a signup started on localhost will
 produce a localhost link.
 
-Once a user confirms and signs in, the database trigger creates their profile, a
-Cash account and the starter categories automatically.
+Once a user confirms and signs in, the database trigger creates their profile and
+starter categories. Their workspace starts with no accounts, so they choose
+their first bank, cash source or credit card in onboarding. No default Cash
+account is created.
+
+The `202611010001_no_default_account.sql` migration only changes provisioning for
+future signups. Existing accounts are untouched, so older test users may still
+have the default Cash account.
 
 ## Schema
 

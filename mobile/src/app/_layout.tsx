@@ -49,6 +49,8 @@ export default function RootLayout() {
               >
                 <Stack.Screen name="(auth)" />
                 <Stack.Screen name="(app)" />
+                <Stack.Screen name="onboarding" />
+                <Stack.Screen name="onboarding-account" />
                 <Stack.Screen name="auth/callback" />
               </Stack>
             </ToastProvider>

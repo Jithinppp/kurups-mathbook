@@ -55,6 +55,13 @@ email. The recovery link returns to `auth/callback`, verifies the token, and
 opens `reset-password`. Updating the password signs the user out so they can sign
 in again with the new password.
 
+## Onboarding
+
+A new user has no accounts. The app opens `onboarding`, where they choose a bank,
+cash source or credit card, then enter the account details on
+`onboarding-account`. The workspace only opens after the first account exists.
+No default Cash account is created by the database trigger.
+
 ## Structure
 
 ```text
@@ -62,6 +69,8 @@ src/app/          Expo Router routes
   (auth)/         login, sign up, forgot password, reset password
   (app)/(tabs)/   Home, Activity, Budgets, Accounts
   (app)/          settings and transaction/budget/account modals
+  onboarding      first-account welcome and type selection
+  onboarding-account  first-account details
   auth/callback   email confirmation and recovery callback
 src/components/   native UI, charts and forms
 src/contexts/     auth, data, selected account and toast providers

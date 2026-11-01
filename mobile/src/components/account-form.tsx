@@ -34,13 +34,31 @@ const TYPES: { value: AccountType; label: string; icon: React.ReactNode }[] = [
   },
 ];
 
-export function AccountForm({ editing }: { editing?: Account | null }) {
+export function AccountForm({
+  editing,
+  defaultType,
+  title,
+  subtitle,
+  saveLabel,
+  onSaved,
+  onCancel,
+}: {
+  editing?: Account | null;
+  defaultType?: AccountType;
+  title?: string;
+  subtitle?: string;
+  saveLabel?: string;
+  onSaved?: () => void;
+  onCancel?: () => void;
+}) {
   const router = useRouter();
   const { addAccount, updateAccount, archiveAccount } = useData();
   const { setSelectedAccountId } = useAccountSelection();
   const { showToast } = useToast();
 
-  const [type, setType] = useState<AccountType>(editing?.type ?? "bank");
+  const [type, setType] = useState<AccountType>(
+    editing?.type ?? defaultType ?? "bank",
+  );
   const [name, setName] = useState(editing?.name ?? "");
   const [institution, setInstitution] = useState(editing?.institution ?? "");
   const [currency, setCurrency] = useState(editing?.currency ?? "AED");
@@ -102,7 +120,11 @@ export function AccountForm({ editing }: { editing?: Account | null }) {
         setSelectedAccountId(account.id);
         showToast("Account added");
       }
-      router.back();
+      if (onSaved) {
+        onSaved();
+      } else {
+        router.back();
+      }
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Could not save account.");
     } finally {
@@ -141,11 +163,11 @@ export function AccountForm({ editing }: { editing?: Account | null }) {
 
   return (
     <FormShell
-      title={editing ? "Edit account" : "New account"}
-      subtitle={editing ? editing.currency : "Bank, cash or credit card"}
-      onCancel={() => router.back()}
+      title={title ?? (editing ? "Edit account" : "New account")}
+      subtitle={subtitle ?? (editing ? editing.currency : "Bank, cash or credit card")}
+      onCancel={onCancel ?? (() => router.back())}
       onSave={handleSave}
-      saveLabel={editing ? "Save" : "Add"}
+      saveLabel={saveLabel ?? (editing ? "Save" : "Add")}
       saving={saving}
       error={error}
       footer={

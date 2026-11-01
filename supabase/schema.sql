@@ -281,8 +281,8 @@ begin
   )
   on conflict (id) do nothing;
 
-  insert into public.accounts (user_id, name, type, currency, color, icon)
-  values (new.id, 'Cash', 'cash', 'AED', '#5741d8', 'banknote');
+  -- Accounts are intentionally not seeded. A new user chooses their first
+  -- bank, cash source or credit card in the onboarding flow.
 
   insert into public.categories (user_id, name, kind, icon, color)
   select

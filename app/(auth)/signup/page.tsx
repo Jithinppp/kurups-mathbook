@@ -129,8 +129,8 @@ export default function SignupPage() {
             </p>
           ) : null}
           <p className="mt-4 text-[10px] text-subtle">
-            Once confirmed, your first sign in creates your personal categories
-            and cash wallet automatically.
+            Once confirmed, you&apos;ll set up your first bank, cash or
+            credit-card account. No default wallet is created.
           </p>
         </div>
       </AuthShell>
@@ -269,7 +269,7 @@ export default function SignupPage() {
         </Link>
 
         <p className="mt-6 text-center text-[10px] leading-relaxed text-subtle">
-          Your workspace starts with a Cash account in AED.
+          Start with your own bank, cash or credit card.
           <br />
           Every user&apos;s data is isolated with row-level security.
         </p>

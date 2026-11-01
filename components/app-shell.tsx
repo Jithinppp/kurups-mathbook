@@ -13,7 +13,8 @@ import {
   Wallet,
 } from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect } from "react";
 import { useAccountSelection } from "@/lib/account-selection";
 import { useAuth } from "@/lib/auth-context";
 import { useData } from "@/lib/data-context";
@@ -48,13 +49,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
 function Shell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
   const { user, loading, signOut } = useAuth();
-  const { profile, ready, error } = useData();
+  const { profile, ready, error, accounts } = useData();
   const { activeAccounts } = useAccountSelection();
   const { openTransaction } = useQuickAdd();
 
+  useEffect(() => {
+    if (ready && !error && user && !user.isDemo && accounts.length === 0) {
+      router.replace("/onboarding");
+    }
+  }, [ready, error, user, accounts.length, router]);
+
   if (loading) return <Splash />;
   if (!user) return <Splash />;
+  if (ready && !error && !user.isDemo && accounts.length === 0) return <Splash />;
 
   const name = profile.fullName || user.name;
   const current = navItems.find((item) => item.href === pathname);
