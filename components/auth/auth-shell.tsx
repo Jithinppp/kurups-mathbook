@@ -22,34 +22,34 @@ export function AuthShell({ children }: { children: ReactNode }) {
           <Logo tone="light" />
         </div>
 
-        <div className="relative my-auto max-w-[520px] py-12">
+        <div className="relative my-auto max-w-[520px] py-8">
           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/55">
             Personal finance, without the spreadsheet
           </p>
-          <h1 className="mt-4 text-[46px] font-semibold leading-[1.04] tracking-[-0.05em] xl:text-[54px]">
+          <h1 className="mt-3 text-[46px] font-semibold leading-[1.04] tracking-[-0.05em] xl:text-[54px]">
             Every dirham,
             <br />
             accounted for.
           </h1>
-          <p className="mt-5 max-w-md text-[14px] leading-relaxed text-white/70">
+          <p className="mt-4 max-w-md text-[14px] leading-relaxed text-white/70">
             Cards, cash, budgets and the month ahead in one calm view. Know where
             you stand before the statement arrives.
           </p>
 
-          <div className="relative mt-10 max-w-[430px]">
-            <div className="rounded-[22px] bg-white p-5 text-ink shadow-[0_28px_70px_rgba(35,10,90,0.28)]">
+          <div className="relative mt-7 max-w-[370px]">
+            <div className="rounded-[20px] bg-white p-4 text-ink shadow-[0_28px_70px_rgba(35,10,90,0.28)]">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-subtle">
                     Net position
                   </p>
-                  <p className="mt-1 text-[26px] font-semibold tracking-[-0.04em]">
+                  <p className="mt-1 text-[24px] font-semibold tracking-[-0.04em]">
                     AED 35,569.55
                   </p>
                 </div>
                 <Badge variant="brand">Sample</Badge>
               </div>
-              <div className="mt-5 flex h-[86px] items-end gap-2">
+              <div className="mt-4 flex h-[64px] items-end gap-2">
                 {[42, 55, 48, 70, 62, 88].map((height, index) => (
                   <div key={index} className="flex h-full flex-1 items-end gap-1">
                     <div
@@ -63,17 +63,17 @@ export function AuthShell({ children }: { children: ReactNode }) {
                   </div>
                 ))}
               </div>
-              <div className="mt-5 space-y-3 border-t border-line-soft pt-4">
+              <div className="mt-4 space-y-2.5 border-t border-line-soft pt-3">
                 <MockRow label="Dining" value="AED 1,020" percent={146} danger />
                 <MockRow label="Groceries" value="AED 723" percent={80} />
                 <MockRow label="Rent" value="AED 5,200" percent={100} />
               </div>
             </div>
-            <div className="absolute -bottom-5 -right-4 rounded-xl border border-white/20 bg-white px-3.5 py-2.5 text-ink shadow-[0_14px_30px_rgba(35,10,90,0.22)]">
+            <div className="absolute -bottom-4 -right-3 rounded-lg border border-white/20 bg-white px-3 py-2 text-ink shadow-[0_14px_30px_rgba(35,10,90,0.22)]">
               <p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-subtle">
                 This month
               </p>
-              <p className="mt-0.5 text-[13px] font-semibold text-success-dark">
+              <p className="mt-0.5 text-[12px] font-semibold text-success-dark">
                 + AED 3,310 kept
               </p>
             </div>
@@ -93,9 +93,8 @@ export function AuthShell({ children }: { children: ReactNode }) {
         <div className="flex flex-1 items-center justify-center py-10">
           <div className="w-full max-w-[400px]">{children}</div>
         </div>
-        <div className="flex items-center justify-between gap-4 text-[10px] text-subtle">
+        <div className="flex items-center text-[10px] text-subtle">
           <span>AshariBook · Personal finance</span>
-          <span className="hidden sm:inline">Private by design</span>
         </div>
       </main>
     </div>

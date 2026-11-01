@@ -136,9 +136,8 @@ export default function OnboardingPage() {
           </div>
         </div>
 
-        <div className="relative flex items-center justify-between border-t border-white/15 pt-5 text-[11px] text-white/50">
+        <div className="relative flex items-center border-t border-white/15 pt-5 text-[11px] text-white/50">
           <span>One workspace, many currencies.</span>
-          <span>Private by design</span>
         </div>
       </aside>
 
