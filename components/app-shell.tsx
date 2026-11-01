@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  ArrowLeftRight,
   CircleUserRound,
   LayoutDashboard,
   LogOut,
@@ -30,13 +29,6 @@ const navItems = [
   { href: "/accounts", label: "Accounts", icon: Wallet },
   { href: "/budgets", label: "Budgets", icon: PieChart },
   { href: "/settings", label: "Settings", icon: Settings },
-];
-
-const mobileItems = [
-  { href: "/", label: "Home", icon: LayoutDashboard },
-  { href: "/transactions", label: "Activity", icon: ArrowLeftRight },
-  { href: "/budgets", label: "Budgets", icon: PieChart },
-  { href: "/accounts", label: "Accounts", icon: Wallet },
 ];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -197,51 +189,7 @@ function Shell({ children }: { children: React.ReactNode }) {
           {children}
         </div>
       </main>
-
-      <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-line-soft bg-white/95 pb-[max(env(safe-area-inset-bottom),0.5rem)] pt-1.5 backdrop-blur-xl lg:hidden">
-        <div className="mx-auto grid max-w-md grid-cols-5 items-end px-2">
-          {mobileItems.slice(0, 2).map((item) => (
-            <MobileNavItem key={item.href} item={item} pathname={pathname} />
-          ))}
-          <div className="flex justify-center">
-            <button
-              type="button"
-              onClick={() => openTransaction()}
-              className="-mt-6 flex size-14 items-center justify-center rounded-full bg-brand text-white shadow-[0_8px_24px_rgba(113,50,245,0.32)] transition active:scale-95 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/20"
-              aria-label="Add transaction"
-            >
-              <Plus className="size-6" />
-            </button>
-          </div>
-          {mobileItems.slice(2).map((item) => (
-            <MobileNavItem key={item.href} item={item} pathname={pathname} />
-          ))}
-        </div>
-      </nav>
     </div>
-  );
-}
-
-function MobileNavItem({
-  item,
-  pathname,
-}: {
-  item: (typeof mobileItems)[number];
-  pathname: string;
-}) {
-  const active =
-    item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
-  return (
-    <Link
-      href={item.href}
-      className={cn(
-        "flex h-12 flex-col items-center justify-center gap-1 rounded-lg text-[10px] font-medium transition",
-        active ? "text-brand" : "text-subtle",
-      )}
-    >
-      <item.icon className="size-[18px]" strokeWidth={active ? 2.2 : 1.9} />
-      {item.label}
-    </Link>
   );
 }
 

@@ -12,7 +12,6 @@ const nextConfig: NextConfig = {
       validationLevel: "manual-warning",
     },
   },
-  // The floating dev badge sits on top of the mobile bottom navigation.
   devIndicators: false,
   turbopack: {
     rules: {

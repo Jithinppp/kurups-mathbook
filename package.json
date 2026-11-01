@@ -7,13 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit",
-    "mobile": "npm --workspace @asharibook/mobile run start",
-    "mobile:android": "npm --workspace @asharibook/mobile run android",
-    "mobile:ios": "npm --workspace @asharibook/mobile run ios",
-    "mobile:web": "npm --workspace @asharibook/mobile run web",
-    "mobile:typecheck": "npm --workspace @asharibook/mobile run typecheck",
-    "dev:all": "concurrently -n web,mobile -c blue,magenta \"npm run dev\" \"npm run mobile\""
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@asharibook/shared": "*",
@@ -35,14 +29,12 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "concurrently": "^9.2.1",
     "eslint": "^9",
     "eslint-config-next": "16.4.2",
     "tailwindcss": "^4",
     "typescript": "~6.0.3"
   },
   "workspaces": [
-    "mobile",
     "packages/*"
   ]
 }

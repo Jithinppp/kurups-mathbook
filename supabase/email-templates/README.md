@@ -4,12 +4,11 @@ These templates are pasted into the Supabase dashboard. They intentionally use
 `{{ .RedirectTo }}` plus `{{ .TokenHash }}` instead of
 `{{ .ConfirmationURL }}`:
 
-- The link goes straight to the app callback (`/auth/callback` on web, or
-  `asharibook://auth/callback` on mobile).
+- The link goes straight to the app callback (`/auth/callback` on web).
 - The app verifies the token with `verifyOtp`, so the link still works if the
   user opens the email in a different browser or device.
 - The `RedirectTo` value comes from the app and respects
-  `NEXT_PUBLIC_SITE_URL` on web or the Expo deep link on mobile.
+  `NEXT_PUBLIC_SITE_URL` on web.
 
 ## 1. Set the app URLs
 
@@ -22,9 +21,6 @@ In **Supabase Dashboard → Authentication → URL Configuration**:
   - `http://localhost:3000/auth/confirm`
   - `https://app.yourdomain.com/auth/callback`
   - `https://app.yourdomain.com/auth/confirm`
-  - `asharibook://auth/callback`
-  - `exp://*/--/auth/callback`
-  - `http://localhost:8081/auth/callback` (Expo web during local development)
 
 On the web deployment, set:
 
@@ -96,7 +92,7 @@ A reliable setup looks like this:
 8. Run the message through <https://www.mail-tester.com/> and check Google
    Postmaster Tools after launch.
 9. Ask new users to check spam once, then move the message to the inbox and mark
-   it as “Not spam”. That trains the mailbox for future auth emails.
+   it as "Not spam". That trains the mailbox for future auth emails.
 
 ### Resend example
 
@@ -119,8 +115,7 @@ for a quick test, but it is not a production sender.
 2. Sign in after confirmation.
 3. Use **Forgot password?**, open the reset email, choose a new password, and
    sign in again.
-4. Repeat the reset flow in the mobile app (Expo Go or a development build).
-5. Check that `/login?error=expired` and `/reset-password` show clear messages
+4. Check that `/login?error=expired` and `/reset-password` show clear messages
    instead of a blank screen.
 
 ## Troubleshooting
@@ -132,6 +127,3 @@ for a quick test, but it is not a production sender.
   scanner, or older than the configured expiry. Request a new one.
 - **The email is in spam**: finish the SMTP, SPF, DKIM, and DMARC setup above.
   Template changes alone cannot fix deliverability.
-- **Mobile link does nothing**: confirm `asharibook://auth/callback` is in the
-  Supabase redirect allow list and that the app is installed. Expo Go uses the
-  `exp://*/--/auth/callback` pattern.
