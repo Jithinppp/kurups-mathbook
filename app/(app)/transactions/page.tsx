@@ -191,7 +191,7 @@ export default function TransactionsPage() {
         )}. Only this account is shown; its balance carries forward.`}
       />
 
-      <div className="flex flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-center">
+      <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
         <MonthPicker value={month} onChange={setMonth} />
         <AccountSwitcher label="Change account" />
       </div>
